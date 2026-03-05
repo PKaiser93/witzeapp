@@ -1,130 +1,83 @@
-"use client";
-import { useState, useEffect } from "react";
-import axios from "axios";
-import { useRouter } from "next/navigation";
-import AppLayout from "@/components/AppLayout";
+'use client';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useRouter } from 'next/navigation';
+import AppLayout from '@/components/AppLayout';
 
-axios.defaults.baseURL = "http://localhost:3000";
+axios.defaults.baseURL = 'http://localhost:3000';
 
 export default function PostPage() {
-  const router = useRouter();
   const [kategorien, setKategorien] = useState([]);
-  const [selectedKategorie, setSelectedKategorie] = useState("");
-  const [text, setText] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [error, setError] = useState("");
+  const [text, setText] = useState('');
+  const [kategorieId, setKategorieId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    loadKategorien();
+    axios.get('/witze/kategorien').then(res => setKategorien(res.data));
   }, []);
 
-  const loadKategorien = async () => {
+  const posten = async () => {
+    setLoading(true);
+    const token = localStorage.getItem('token');
     try {
-      const { data } = await axios.get("/kategorien");
-      setKategorien(data);
-      if (data.length > 0) setSelectedKategorie(data[0].id.toString());
-    } catch (err) {
-      console.error("Kategorien laden fehlgeschlagen:", err);
-    }
-  };
-
-  const submitWitz = async () => {
-    if (!text.trim() || !selectedKategorie) {
-      setError("Text und Kategorie erforderlich");
-      return;
-    }
-    setPosting(true);
-    setError("");
-    try {
-      await axios.post("/witze", {
-        text,
-        kategorieId: parseInt(selectedKategorie),
+      await axios.post('/witze', { text, kategorieId: kategorieId || null }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      router.push("/");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Fehler beim Posten");
-    } finally {
-      setPosting(false);
+      router.push('/');
+    } catch (error) {
+      alert('Fehler beim Posten!');
     }
+    setLoading(false);
   };
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
+      <div className="max-w-2xl mx-auto p-8">
+        <h1 className="text-4xl font-black bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent mb-12">
+          Neuer Witz 🚀
+        </h1>
+
+        <div className="space-y-6">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Deinen besten Witz hier eingeben..."
+            className="w-full p-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-xl text-white placeholder-gray-400 resize-vertical min-h-[200px] focus:outline-none focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-500/30 transition-all"
+            maxLength={500}
+          />
+
+          <div>
+            <label className="block text-lg font-semibold text-white mb-3">
+              Kategorie (optional)
+            </label>
+            <select
+              value={kategorieId}
+              onChange={(e) => setKategorieId(e.target.value)}
+              className="w-full p-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl text-xl text-white focus:outline-none focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-500/30 transition-all"
+            >
+              <option value="">🆓 Ohne Kategorie</option>
+              {kategorien.map((k: any) => (
+                <option key={k.id} value={k.id}>
+                  {k.emoji} {k.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-400 hover:text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-all"
+            onClick={posten}
+            disabled={!text.trim() || loading}
+            className="w-full px-8 py-6 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-xl font-black text-white rounded-2xl shadow-2xl hover:shadow-indigo-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            ← Zurück
+            {loading ? '📤 Posten...' : '🚀 Witz posten!'}
           </button>
-          <h1 className="text-3xl font-black text-white">✏️ Witz posten</h1>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 max-w-2xl">
-          <div className="space-y-6">
-            {/* Kategorie */}
-            <div>
-              <label className="block text-gray-300 font-medium mb-3">
-                Kategorie
-              </label>
-              <select
-                value={selectedKategorie}
-                onChange={(e) => setSelectedKategorie(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 focus:border-indigo-500 rounded-xl text-white focus:outline-none transition-all"
-              >
-                <option value="">Kategorie wählen...</option>
-                {kategorien.map((k: any) => (
-                  <option key={k.id} value={k.id}>
-                    {k.emoji} {k.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Text */}
-            <div>
-              <label className="block text-gray-300 font-medium mb-3">
-                Dein Witz
-              </label>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Dein bester Witz hier..."
-                rows={6}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 focus:border-indigo-500 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all resize-vertical"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-500/20 border border-red-500/50 text-red-300 p-4 rounded-xl">
-                ⚠️ {error}
-              </div>
-            )}
-
-            {/* Buttons */}
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={submitWitz}
-                disabled={!text.trim() || !selectedKategorie || posting}
-                className="flex-1 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl disabled:opacity-40 transition-all"
-              >
-                {posting ? "Poste..." : "Witz posten 🚀"}
-              </button>
-              <button
-                onClick={() => router.push("/")}
-                className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl transition-all"
-              >
-                Abbrechen
-              </button>
-            </div>
-          </div>
+        <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10">
+          <p className="text-indigo-300 font-semibold">
+            {text.length}/500 Zeichen
+          </p>
         </div>
       </div>
     </AppLayout>

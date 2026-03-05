@@ -14,6 +14,8 @@ export default function ProfilPage() {
   const [loading, setLoading] = useState(true);
   const [likesReceived, setLikesReceived] = useState(0);
   const [rang, setRang] = useState('🥉 Neuling');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editText, setEditText] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -29,16 +31,16 @@ export default function ProfilPage() {
     loadProfile();  // 🔥 Vollständiges Profile laden!
   }, []);
 
-  // loadProfile() Error-Handling
   const loadProfile = async () => {
     try {
-      const { data } = await axios.get("/witz/profile");
+      const { data } = await axios.get("/profile");  // <- /witz/profile → /profile !
       setWitze(data.witze || []);
       setLikesReceived(data.likesReceived || 0);
       setRang(data.rang || '🥉 Neuling');
-      setUsername(data.username);
-      setEmail(data.email);
+      setUsername(data.username || localStorage.getItem("username") || '');
+      setEmail(data.email || localStorage.getItem("email") || '');
     } catch (error) {
+      console.error('Profile Error:', error.response?.data || error.message);
       if (error.response?.status === 401) {
         localStorage.removeItem("token");
         router.push("/login");
@@ -48,15 +50,37 @@ export default function ProfilPage() {
     }
   };
 
+  const editWitz = (id: number, currentText: string) => {
+    setEditingId(id);
+    setEditText(currentText);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editText.trim()) return;
+    try {
+      await axios.patch(`/profile/witz/${editingId}`, { text: editText.trim() });
+      loadProfile();  // Refresh
+      setEditingId(null);
+      setEditText('');
+    } catch (error) {
+      console.error('Edit failed:', error);
+      alert('Edit fehlgeschlagen!');
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
 
 
   const deleteWitz = async (id: number) => {
     if (!confirm("Witz wirklich löschen?")) return;
     const token = localStorage.getItem("token");
-    await axios.delete(`/witze/${id}`, {
+    await axios.delete(`/profile/witz/${id}`, {  // <- /witze/${id} → /profile/witz/${id}
       headers: { Authorization: `Bearer ${token}` },
     });
-    loadProfile();  // 🔥 Neu laden nach Delete!
+    loadProfile();
   };
 
   return (
@@ -158,40 +182,82 @@ export default function ProfilPage() {
 
           <div className="space-y-3">
             {witze.map((w: any) => (
-              <div
-                key={w.id}
-                className="group p-5 bg-gray-800/50 hover:bg-gray-750/50 border border-gray-700/50 rounded-2xl transition-all"
-              >
+              <div key={w.id} className="group p-5 bg-gray-800/50 hover:bg-gray-750/50 border border-gray-700/50 rounded-2xl transition-all">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <p className="text-gray-100 text-lg leading-relaxed">
-                      "{w.text}"
-                    </p>
-                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                      <span>#{w.id}</span>
-                      <span>•</span>
-                      <span>{new Date(w.createdAt).toLocaleString("de-DE")}</span>
-                      {w.kategorie && (
-                        <>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            {w.kategorie.emoji} {w.kategorie.name}
+                    {editingId === w.id ? (
+                      // 🔥 EDIT MODE
+                      <div className="space-y-3 p-3 bg-gray-900/50 border border-gray-600 rounded-xl">
+                        <textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          className="w-full p-3 bg-gray-800 border border-gray-600 rounded-xl text-white text-lg resize-vertical min-h-[100px] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                          placeholder="Witz bearbeiten..."
+                          autoFocus
+                        />
+                        <div className="flex gap-3 justify-end pt-2 border-t border-gray-700">
+                          <button
+                            onClick={cancelEdit}
+                            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all font-medium"
+                          >
+                            Abbrechen
+                          </button>
+                          <button
+                            onClick={saveEdit}
+                            disabled={!editText.trim()}
+                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all"
+                          >
+                            Speichern
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // 🔥 NORMAL MODE
+                      <>
+                        <p className="text-gray-100 text-lg leading-relaxed mb-2">"{w.text}"</p>
+
+                        {/* 🔥 Bearbeitet-Label */}
+                        {w.isEdited && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-medium rounded-full border border-yellow-500/30">
+                            ✏️ Bearbeitet vor {new Date(w.updatedAt).toLocaleString('de-DE', {
+                              hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short'
+                            })}
                           </span>
-                        </>
-                      )}
-                      {/* 🔥 Likes anzeigen (nicht likbar!) */}
-                      <div className="ml-auto flex items-center gap-1 text-red-400">
-                        <span className="font-bold">{w.likes ?? 0}</span>
-                        <span>👍</span>
+                        )}
+                      </>
+                    )}
+
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                      <span className="font-mono text-xs bg-gray-800 px-2 py-1 rounded">#{w.id}</span>
+                      <span>•</span>
+                      <span>{new Date(w.createdAt).toLocaleDateString("de-DE", {
+                        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })}</span>
+                      <div className="ml-auto flex items-center gap-1 text-indigo-400 font-bold">
+                        <span>{w.likes ?? 0}</span> 👍
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteWitz(w.id)}
-                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 hover:text-red-200 font-bold text-sm rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                  >
-                    🗑️ Löschen
-                  </button>
+
+                  {/* 🔥 Buttons (nur normal mode) */}
+                  {!editingId && (
+                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all ml-2">
+                      <button
+                        onClick={() => editWitz(w.id, w.text)}
+                        className="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/40 text-blue-300 hover:text-blue-100 font-bold text-sm rounded-xl transition-all shadow-sm hover:shadow-blue-500/25"
+                        title="Bearbeiten"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => deleteWitz(w.id)}
+                        className="px-3 py-2 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 text-red-300 hover:text-red-100 font-bold text-sm rounded-xl transition-all shadow-sm hover:shadow-red-500/25"
+                        title="Löschen"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

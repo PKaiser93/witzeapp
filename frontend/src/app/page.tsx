@@ -91,16 +91,39 @@ export default function HomePage() {
           <div className="space-y-4">
             {witze.map((w: any) => {
               const toggleLike = async (e: React.MouseEvent) => {
-                e.stopPropagation();
-                const token = localStorage.getItem("token");
+                e.stopPropagation();  // Navigation stoppen
+
+                if (!w || !w.id) {
+                  console.error('❌ Ungültiger Witz:', w);
+                  return;
+                }
+
+                const token = localStorage.getItem('token');
+                if (!token) {
+                  alert('Bitte einloggen!');
+                  router.push('/login');
+                  return;
+                }
 
                 try {
-                  await axios.patch(`/witze/${w.id}/like`, {}, {
-                    headers: { Authorization: `Bearer ${token}` }
+                  console.log('PATCH /witze/' + w.id + ' mit Token:', token.substring(0, 20) + '...');
+
+                  const { data } = await axios.patch(`/witze/${w.id}/like`, {}, {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    }
                   });
-                  loadWitze();  // ← Reload = Backend-State!
-                } catch (error) {
-                  console.error("Like failed:", error);
+
+                  console.log('✅ Like Response:', data);
+                  loadWitze();  // Reload Liste
+                } catch (error: any) {
+                  console.error('❌ Like Error:', error.response?.status, error.response?.data);
+                  if (error.response?.status === 401) {
+                    localStorage.removeItem('token');
+                    alert('Session abgelaufen – neu einloggen');
+                    router.push('/login');
+                  }
                 }
               };
 
@@ -143,7 +166,7 @@ export default function HomePage() {
                         <div className="flex items-center gap-1 ml-auto">
                           <button
                             onClick={toggleLike}
-                            className={`p-2 rounded-xl transition-all text-sm ${w.userLiked  // ← Backend Daten!
+                            className={`p-2 rounded-xl transition-all text-sm ${(w.userLiked || false)
                               ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 shadow-red-500/25 shadow-lg"
                               : "bg-gray-700/50 text-gray-400 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30"
                               }`}
@@ -159,6 +182,7 @@ export default function HomePage() {
                 </div>
               );
             })}
+
           </div>
 
           {witze.length === 0 && !loading && (
