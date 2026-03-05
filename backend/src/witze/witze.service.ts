@@ -151,7 +151,7 @@ export class WitzeService {
   async findUserWitze(userId: number) {
     return this.prisma.witz.findMany({
       where: { authorId: userId },
-      include: { kategorie: true, author: { select: { username: true } } },
+      include: { kategorie: true, _count: { select: { likes: true } } },
       orderBy: { createdAt: 'desc' }
     });
   }
