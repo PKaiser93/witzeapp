@@ -1,5 +1,11 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { KategorieService } from './kategorie.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+interface CreateKategorieDto {
+  name: string;
+  emoji: string;
+}
 
 @Controller('kategorien')
 export class KategorieController {
@@ -11,7 +17,8 @@ export class KategorieController {
   }
 
   @Post()
-  async create(@Body('name') name: string, @Body('emoji') emoji: string) {
-    return this.kategorieService.create(name, emoji);
+  @UseGuards(JwtAuthGuard)
+  async create(@Body() body: CreateKategorieDto) {
+    return this.kategorieService.create(body.name, body.emoji);
   }
 }
