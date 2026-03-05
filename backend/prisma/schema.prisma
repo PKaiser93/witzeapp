@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  email    String @unique
+  password String
+  witze    Witz[]
+  likes    Like[]
+}
+
+model Kategorie {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  emoji     String
+  createdAt DateTime @default(now())
+  witze     Witz[]
+}
+
+model Witz {
+  id          Int        @id @default(autoincrement())
+  text        String
+  authorId    Int?
+  kategorieId Int?
+  likes       Int        @default(0) // ← COUNTER (Zahl)
+  createdAt   DateTime   @default(now())
+  author      User?      @relation(fields: [authorId], references: [id])
+  kategorie   Kategorie? @relation(fields: [kategorieId], references: [id])
+  likeLikes   Like[] // ← RELATION (Array) — NEUER NAME!
+
+  @@map("witze")
+}
+
+model Like {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  witzId Int
+  user   User @relation(fields: [userId], references: [id])
+  witz   Witz @relation(fields: [witzId], references: [id])
+
+  @@unique([userId, witzId])
+}
+
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}

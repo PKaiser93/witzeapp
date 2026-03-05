@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_DB: witzeapp
+      POSTGRES_USER: witzeuser
+      POSTGRES_PASSWORD: devpass123
+    volumes:
+      - postgres_dev:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev:
