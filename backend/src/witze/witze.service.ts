@@ -109,10 +109,11 @@ export class WitzeService {
       witze,
       likesReceived,
       rang,
-      username: user?.username || 'Unbekannt',
-      email: user?.email || ''
+      username: user?.username || 'Unbekannt',  // ✅ Fix!
+      email: user?.email || ''                  // ✅ Fix!
     };
   }
+
 
 
   private getRang(likes: number): string {
@@ -148,10 +149,11 @@ export class WitzeService {
     });
   }
 
-  async findUserWitze(userId: number) {
+  async findUserWitze(userId: number | string) {
+    const id = Number(userId);
     return this.prisma.witz.findMany({
-      where: { authorId: userId },
-      include: { kategorie: true, _count: { select: { likes: true } } },
+      where: { authorId: id },
+      include: { kategorie: true },
       orderBy: { createdAt: 'desc' }
     });
   }

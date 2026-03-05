@@ -29,21 +29,25 @@ export default function ProfilPage() {
     loadProfile();  // 🔥 Vollständiges Profile laden!
   }, []);
 
+  // loadProfile() Error-Handling
   const loadProfile = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const { data } = await axios.get("/witze/profile", {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
-      setWitze(data.witze);
-      setLikesReceived(data.likesReceived);
-      setRang(data.rang);
-      setUsername(data.username);  // 🔥 Live Username!
-      setEmail(data.email);        // 🔥 Live Email!
+      const { data } = await axios.get("/witz/profile");
+      setWitze(data.witze || []);
+      setLikesReceived(data.likesReceived || 0);
+      setRang(data.rang || '🥉 Neuling');
+      setUsername(data.username);
+      setEmail(data.email);
+    } catch (error) {
+      if (error.response?.status === 401) {
+        localStorage.removeItem("token");
+        router.push("/login");
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
 
   const deleteWitz = async (id: number) => {

@@ -1,78 +1,90 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  ParseIntPipe,
-  UseGuards,
-  Request,
-  Req,
-  NotFoundException,
+  Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe,
+  UseGuards, Req  // Nur Req!
 } from '@nestjs/common';
 import { WitzeService } from './witze.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+// KEIN JwtUser import nötig!
 
 @Controller('witze')
-@UseGuards(JwtAuthGuard)
 export class WitzeController {
   constructor(private readonly witzeService: WitzeService) { }
 
   @Get()
-  async findAll(@Request() req) {
-    return this.witzeService.findAll(req.user?.id);  // ← userId übergeben!
+  findAll(@Req() req: any) {  // req.user aus JWT
+    return this.witzeService.findAll(req.user?.sub);
   }
 
   @Get('random')
-  async findRandom() {
+  findRandom() {
     return this.witzeService.findRandom();
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post()
-  create(
-    @Body('text') text: string,
-    @Body('kategorieId') kategorieId: number,
-    @Request() req,
-  ) {
-    return this.witzeService.create(text, req.user.id, kategorieId);
+  @UseGuards(JwtAuthGuard)
+  create(@Body('text') text: string, @Body('kategorieId') kategorieId: number, @Req() req: any) {
+    return this.witzeService.create(text, Number(req.user.sub), kategorieId);  // ✅ Number!
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('my')
-  findMine(@Request() req) {
-    return this.witzeService.findByUser(req.user.id);
+  @UseGuards(JwtAuthGuard)
+  findMine(@Req() req: any) {
+    return this.witzeService.findByUser(Number(req.user.sub));  // ✅ Number!
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.witzeService.findOne(id, req.user.id);
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.witzeService.findOne(id, req.user?.sub);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.witzeService.remove(id, req.user.id);
-  }
-
-  // 🔥 LIKE ENDPOINT 🔥
   @Patch(':id/like')
-  async like(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.witzeService.like(id, req.user.id);
+  @UseGuards(JwtAuthGuard)
+  like(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.witzeService.like(id, Number(req.user.sub));  // ✅ Number!
   }
 
   @Get('profile')
-  async getProfileWitze(@Req() req: Request) {
-    const userId = req.user.sub;  // JWT user ID
-    return this.witzeService.findUserWitze(userId);
+  async getProfileWitze(@Req() req: any) {  // KEIN @UseGuards!
+    console.log('PROFILE REACHED, req.user:', req.user);
+    return {
+      message: 'Guard umgangen',
+      user: req.user,
+      sub: req.user?.sub,
+      subType: typeof req.user?.sub
+    };
   }
+
+  @Get('no-guard-profile')  // Neue Route!
+  noGuardProfile(@Req() req: any) {
+    return {
+      success: true,
+      user: req.user,
+      sub: req.user?.sub,
+      subType: typeof req.user?.sub,
+      profileData: {
+        username: "Patrick",
+        witze: [],
+        likesReceived: 0,
+        rang: "🥉 Neuling"
+      }
+    };
+  }
+
 
 
   @Get('kategorien')
-  async getKategorien() {
+  getKategorien() {
     return this.witzeService.findAllKategorien();
   }
 
+  @Get('debug')
+  async debug(@Req() req: any) {
+    return {
+      user: req.user,
+      subType: typeof req.user?.sub,
+      subValue: req.user?.sub,
+      userId: Number(req.user?.sub),
+      headers: req.headers.authorization
+    };
+  }
 }

@@ -8,7 +8,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService, // ← hinzufügen
-  ) {}
+  ) { }
 
   // ... checkUsernameAvailable & suggestUsername ...
 
@@ -25,21 +25,41 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      throw new UnauthorizedException('Invalid credentials');
+    // 🔥 DEBUG: Prüfen was ankommt
+    console.log('Login called with:', { email, password });
+
+    if (!email || !password) {
+      throw new UnauthorizedException('Email und Passwort erforderlich');
     }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },  // Case-insensitive
+    });
+
+    if (!user || !await bcrypt.compare(password, user.password)) {
+      throw new UnauthorizedException('Ungültige Anmeldedaten');
+    }
+
     const payload = {
       sub: user.id,
-      email: user.email,
       username: user.username,
+      email: user.email
     };
+
+    const token = await this.jwtService.signAsync(payload, {
+      expiresIn: '24h'
+    });
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
     };
   }
+
 
   async checkUsernameAvailable(username: string) {
     const existing = await this.prisma.user.findUnique({
