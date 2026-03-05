@@ -15,3 +15,22 @@ backend/.env
 .idea/
 .DS_Store
 Thumbs.db
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Backend
+backend/node_modules/
+backend/dist/
+backend/prisma/migrations/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# IDE
+.vscode/
+.idea/
