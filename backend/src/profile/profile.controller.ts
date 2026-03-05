@@ -1,26 +1,40 @@
-import { Controller, Get, Delete, Patch, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Delete, Patch, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ProfileService, ProfileResponse } from './profile.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { Req } from '@nestjs/common';
+import { Request } from 'express';
+
+interface UpdateWitzDto {
+    text: string;
+}
 
 @Controller('profile')
 export class ProfileController {
-    constructor(private profileService: ProfileService) { }
+    constructor(private readonly profileService: ProfileService) {}
 
     @Get()
     @UseGuards(JwtAuthGuard)
-    async getProfile(@Req() req: any): Promise<ProfileResponse> {
-        return this.profileService.getProfile(Number(req.user.sub));
+    async getProfile(@Req() req: Request & { user: JwtPayload }): Promise<ProfileResponse> {
+        return this.profileService.getProfile(req.user.sub);
     }
 
     @Delete('witz/:id')
     @UseGuards(JwtAuthGuard)
-    deleteWitz(@Param('id') id: string, @Req() req: any) {
-        return this.profileService.deleteWitz(Number(id), Number(req.user.sub));
+    async deleteWitz(
+        @Param('id', ParseIntPipe) id: number,
+        @Req() req: Request & { user: JwtPayload },
+    ) {
+        return this.profileService.deleteWitz(id, req.user.sub);
     }
 
     @Patch('witz/:id')
     @UseGuards(JwtAuthGuard)
-    updateWitz(@Param('id') id: string, @Body() updateData: { text: string }, @Req() req: any) {
-        return this.profileService.updateWitz(Number(id), updateData.text, Number(req.user.sub));
+    async updateWitz(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() updateData: UpdateWitzDto,
+        @Req() req: Request & { user: JwtPayload },
+    ) {
+        return this.profileService.updateWitz(id, updateData.text, req.user.sub);
     }
 }
