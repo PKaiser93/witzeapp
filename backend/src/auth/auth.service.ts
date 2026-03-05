@@ -3,51 +3,82 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 
+interface RegisterData {
+  email: string;
+  password: string;
+  username: string;
+}
+
+interface AuthUser {
+  id: number;
+  email: string;
+  username: string;
+}
+
+interface LoginResult {
+  access_token: string;
+  user: AuthUser;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService, // ← hinzufügen
-  ) { }
+      private readonly prisma: PrismaService,
+      private readonly jwtService: JwtService,
+  ) {}
 
-  // ... checkUsernameAvailable & suggestUsername ...
+  async register(data: RegisterData): Promise<AuthUser> {
+    const email = data.email.trim().toLowerCase();
+    const password = data.password;
+    const username = data.username.trim();
 
-  async register(data: { email: string; password: string; username: string }) {
-    const hashed = await bcrypt.hash(data.password, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const newUser = await this.prisma.user.create({
       data: {
-        email: data.email,
-        password: hashed,
-        username: data.username,
+        email,
+        password: hashedPassword,
+        username,
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
       },
     });
-    return { id: newUser.id, email: newUser.email, username: newUser.username };
+
+    return newUser;
   }
 
-  async login(email: string, password: string) {
-    // 🔥 DEBUG: Prüfen was ankommt
-    console.log('Login called with:', { email, password });
+  async login(email: string, password: string): Promise<LoginResult> {
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       throw new UnauthorizedException('Email und Passwort erforderlich');
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },  // Case-insensitive
+      where: { email: normalizedEmail },
     });
 
-    if (!user || !await bcrypt.compare(password, user.password)) {
+    if (!user) {
+      throw new UnauthorizedException('Ungültige Anmeldedaten');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
       throw new UnauthorizedException('Ungültige Anmeldedaten');
     }
 
     const payload = {
       sub: user.id,
       username: user.username,
-      email: user.email
+      email: user.email,
     };
 
     const token = await this.jwtService.signAsync(payload, {
-      expiresIn: '24h'
+      expiresIn: '24h',
     });
 
     return {
@@ -55,28 +86,50 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
-      }
+        email: user.email,
+      },
     };
   }
 
+  async checkUsernameAvailable(username: string): Promise<boolean> {
+    const normalizedUsername = username.trim();
 
-  async checkUsernameAvailable(username: string) {
+    if (!normalizedUsername) {
+      return false;
+    }
+
     const existing = await this.prisma.user.findUnique({
-      where: { username },
+      where: { username: normalizedUsername },
+      select: { id: true },
     });
+
     return !existing;
   }
 
-  async suggestUsername(base: string) {
-    let suggestion = base.replace(/[^a-zA-Z0-9]/g, '');
+  async suggestUsername(base: string): Promise<string> {
+    const cleanedBase = base.replace(/[^a-zA-Z0-9]/g, '').trim() || 'user';
+    let suggestion = cleanedBase;
     let counter = 1;
-    while (
-      await this.prisma.user.findUnique({ where: { username: suggestion } })
-    ) {
-      suggestion = `${base.replace(/[^a-zA-Z0-9]/g, '')}${counter}`;
+
+    const maxAttempts = 1000;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const existing = await this.prisma.user.findUnique({
+        where: { username: suggestion },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return suggestion;
+      }
+
+      suggestion = `${cleanedBase}${counter}`;
       counter++;
+
+      if (counter > maxAttempts) {
+        throw new Error('Konnte keinen freien Username finden');
+      }
     }
-    return suggestion;
   }
 }

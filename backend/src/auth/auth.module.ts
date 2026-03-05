@@ -10,13 +10,21 @@ import { PrismaModule } from '../prisma/prisma.module';
 @Module({
   imports: [
     PrismaModule,
-    ConfigModule,  // ✅ Config laden
-    JwtModule.registerAsync({  // ✅ Async für Env
+    ConfigModule,
+    JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET') || '+Z/UpZdWed0PRoTZVyyPKJb/dUQblZSw+VV9Y0WnveM=',
-        signOptions: { expiresIn: '7d' },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const jwtSecret = configService.get<string>('JWT_SECRET');
+
+        if (!jwtSecret) {
+          throw new Error('JWT_SECRET is not configured');
+        }
+
+        return {
+          secret: jwtSecret,
+          signOptions: { expiresIn: '7d' },
+        };
+      },
       inject: [ConfigService],
     }),
   ],
@@ -24,4 +32,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [AuthService, JwtStrategy, JwtAuthGuard],
   exports: [AuthService, JwtAuthGuard],
 })
-export class AuthModule { }
+export class AuthModule {}

@@ -1,14 +1,17 @@
+// register.dto.ts
 import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
 
 export class RegisterDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Bitte eine gültige E-Mail-Adresse angeben' })
   email!: string;
 
-  @IsString()
-  @MinLength(6)
+  @IsString({ message: 'Passwort muss ein String sein' })
+  @MinLength(6, {
+    message: 'Passwort muss mindestens 6 Zeichen lang sein',
+  })
   password!: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'Username muss ein String sein' })
+  @IsNotEmpty({ message: 'Username darf nicht leer sein' })
   username!: string;
 }
