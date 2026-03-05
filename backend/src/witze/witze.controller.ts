@@ -1,40 +1,29 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe,
-  UseGuards, Req
+  Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe, UseGuards,
 } from '@nestjs/common';
 import { WitzeService } from './witze.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+
+interface CreateWitzDto {
+  text: string;
+  kategorieId?: number | null;
+}
 
 @Controller('witze')
 export class WitzeController {
-  constructor(private readonly witzeService: WitzeService) { }
-
-  // 🔥 ULTRA-MINIMAL DEBUG
-  @Get('usercheck')
-  @UseGuards(JwtAuthGuard)
-  userCheck(@Req() req: any) {
-    return {
-      success: true,
-      userExists: !!req.user,
-      user: req.user || 'NULL',
-      sub: req.user?.sub,
-      type: typeof req.user?.sub,
-      id: Number(req.user?.sub || 0)
-    };
-  }
+  constructor(private readonly witzeService: WitzeService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)  // ← Optional Guard!
-  findAll(@Req() req: any) {
-    const userId = req.user?.sub ? Number(req.user.sub) : undefined;
-    console.log('🔥 findAll userId:', userId);  // Sollte 2 loggen!
-    return this.witzeService.findAll(userId);
+  @UseGuards(JwtAuthGuard)
+  findAll(@CurrentUser() user: JwtPayload) {
+    return this.witzeService.findAll(user.sub);
   }
-
 
   @Get('public')
   findAllPublic() {
-    return this.witzeService.findAll();  // Ohne userId
+    return this.witzeService.findAll();
   }
 
   @Get('random')
@@ -42,46 +31,31 @@ export class WitzeController {
     return this.witzeService.findRandom();
   }
 
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  create(@Body() body: any, @Req() req: any) {
-    console.log('POST body:', body);  // DEBUG
-    return this.witzeService.create(body.text, Number(req.user.sub), body.kategorieId || null);
-  }
-
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.witzeService.findOne(id, req.user?.sub);
-  }
-
-  @Patch(':id/like')
-  @UseGuards(JwtAuthGuard)
-  like(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.witzeService.like(id, Number(req.user.sub));
-  }
-
-  @Get('my')
-  @UseGuards(JwtAuthGuard)
-  findMine(@Req() req: any) {
-    return this.witzeService.findByUser(Number(req.user.sub));
-  }
-
   @Get('kategorien')
   getKategorien() {
     return this.witzeService.findAllKategorien();
   }
 
-  @Get('debug')
+  @Get('my')
   @UseGuards(JwtAuthGuard)
-  async debug(@Req() req: any) {
-    return {
-      timestamp: new Date().toISOString(),
-      user: req.user,
-      subType: typeof req.user?.sub,
-      subValue: req.user?.sub,
-      userId: Number(req.user?.sub || 0),
-      headers: req.headers.authorization?.substring(0, 50)
-    };
+  findMine(@CurrentUser() user: JwtPayload) {
+    return this.witzeService.findByUser(user.sub);
   }
 
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.witzeService.findOne(id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  create(@Body() body: CreateWitzDto, @CurrentUser() user: JwtPayload) {
+    return this.witzeService.create(body.text, user.sub, body.kategorieId ?? null);
+  }
+
+  @Patch(':id/like')
+  @UseGuards(JwtAuthGuard)
+  like(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
+    return this.witzeService.like(id, user.sub);
+  }
 }

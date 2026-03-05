@@ -38,7 +38,7 @@ export default function WitzDetail() {
                 return;
             }
 
-            const { data } = await axios.get(`/witze/${id}`, {
+            const { data } = await axios.get(`/witz/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 5000  // 5s Timeout
             });
@@ -66,7 +66,7 @@ export default function WitzDetail() {
                 return;
             }
 
-            await axios.patch(`/witze/${id}/like`, {}, {
+            await axios.patch(`/witz/${id}/like`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 3000
             });

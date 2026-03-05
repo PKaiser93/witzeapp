@@ -1,9 +1,8 @@
 import { Controller, Get, Delete, Patch, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ProfileService, ProfileResponse } from './profile.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { Req } from '@nestjs/common';
-import { Request } from 'express';
+import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 interface UpdateWitzDto {
     text: string;
@@ -15,17 +14,17 @@ export class ProfileController {
 
     @Get()
     @UseGuards(JwtAuthGuard)
-    async getProfile(@Req() req: Request & { user: JwtPayload }): Promise<ProfileResponse> {
-        return this.profileService.getProfile(req.user.sub);
+    async getProfile(@CurrentUser() user: JwtPayload): Promise<ProfileResponse> {
+        return this.profileService.getProfile(user.sub);
     }
 
     @Delete('witz/:id')
     @UseGuards(JwtAuthGuard)
     async deleteWitz(
         @Param('id', ParseIntPipe) id: number,
-        @Req() req: Request & { user: JwtPayload },
+        @CurrentUser() user: JwtPayload,
     ) {
-        return this.profileService.deleteWitz(id, req.user.sub);
+        return this.profileService.deleteWitz(id, user.sub);
     }
 
     @Patch('witz/:id')
@@ -33,8 +32,8 @@ export class ProfileController {
     async updateWitz(
         @Param('id', ParseIntPipe) id: number,
         @Body() updateData: UpdateWitzDto,
-        @Req() req: Request & { user: JwtPayload },
+        @CurrentUser() user: JwtPayload,
     ) {
-        return this.profileService.updateWitz(id, updateData.text, req.user.sub);
+        return this.profileService.updateWitz(id, updateData.text, user.sub);
     }
 }

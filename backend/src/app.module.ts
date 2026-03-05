@@ -13,10 +13,10 @@ import { ProfileModule } from './profile/profile.module';
       envFilePath: '.env',
     }),
     PrismaModule,
-    WitzeModule,
     AuthModule,
     KategorieModule,
-    ProfileModule
+    WitzeModule,
+    ProfileModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

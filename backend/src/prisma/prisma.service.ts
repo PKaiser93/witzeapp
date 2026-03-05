@@ -24,8 +24,13 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    await this.$connect();
-    this.logger.log('✅ Prisma connected with adapter-pg');
+    try {
+      await this.$connect();
+      this.logger.log('Prisma connected');
+    } catch (error) {
+      this.logger.error('Prisma connection failed', error);
+      throw error;
+    }
   }
 
   async onModuleDestroy() {

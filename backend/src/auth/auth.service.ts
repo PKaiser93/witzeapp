@@ -9,13 +9,13 @@ interface RegisterData {
   username: string;
 }
 
-interface AuthUser {
+export interface AuthUser {
   id: number;
   email: string;
   username: string;
 }
 
-interface LoginResult {
+export interface LoginResult {
   access_token: string;
   user: AuthUser;
 }

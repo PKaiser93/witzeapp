@@ -11,6 +11,7 @@ model User {
   username String @unique
   email    String @unique
   password String
+  role     Role   @default(USER)
   witze    Witz[]
   likes    Like[]
 }
@@ -31,19 +32,21 @@ model Witz {
   likes       Int        @default(0) // ← COUNTER (Zahl)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  author      User?      @relation(fields: [authorId], references: [id])
+  author      User?      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   kategorie   Kategorie? @relation(fields: [kategorieId], references: [id])
   likeLikes   Like[] // ← RELATION (Array) — NEUER NAME!
 
-  @@map("witze")
+  @@index([authorId])
+  @@index([kategorieId])
+  @@map("witz")
 }
 
 model Like {
   id     Int  @id @default(autoincrement())
   userId Int
   witzId Int
-  user   User @relation(fields: [userId], references: [id])
-  witz   Witz @relation(fields: [witzId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  witz   Witz @relation(fields: [witzId], references: [id], onDelete: Cascade)
 
   @@unique([userId, witzId])
 }
