@@ -44,15 +44,11 @@ export class WitzeController {
   }
 
   @Get('profile')
-  async getProfileWitze(@Req() req: any) {  // KEIN @UseGuards!
-    console.log('PROFILE REACHED, req.user:', req.user);
-    return {
-      message: 'Guard umgangen',
-      user: req.user,
-      sub: req.user?.sub,
-      subType: typeof req.user?.sub
-    };
+  @UseGuards(JwtAuthGuard)
+  getProfileWitze(@Req() req: any) {
+    return this.witzeService.getProfile(Number(req.user.sub));
   }
+
 
   @Get('no-guard-profile')  // Neue Route!
   noGuardProfile(@Req() req: any) {

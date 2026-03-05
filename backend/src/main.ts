@@ -10,9 +10,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ❌ GLOBAL PIPE AUS!
-  // app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
-
   await app.listen(3000);
   console.log('🚀 Backend http://localhost:3000');
 }
