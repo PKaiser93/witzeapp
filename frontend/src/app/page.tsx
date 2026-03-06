@@ -54,6 +54,7 @@ export default function HomePage() {
   const [witzOfTheDay, setWitzOfTheDay] = useState<WitzOfTheDay | null>(null);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [sort, setSort] = useState<'new' | 'top' | 'comments'>('new');
   const [commentTextMap, setCommentTextMap] = useState<Record<number, string>>(
     {}
   );
@@ -124,6 +125,7 @@ export default function HomePage() {
       const params = new URLSearchParams();
       if (kategorie) params.set('kategorie', kategorie);
       if (search) params.set('search', search);
+      if (sort !== 'new') params.set('sort', sort);
       const url = `${API_URL}/witze${params.toString() ? `?${params}` : ''}`;
 
       const res = await fetch(url, { headers: getAuthHeader() }); // ← fehlt
@@ -139,7 +141,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [searchParams, router, search]);
+  }, [searchParams, router, search, sort]);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput), 300);
@@ -249,6 +251,25 @@ export default function HomePage() {
               ✕
             </button>
           )}
+        </div>
+
+        {/* Sortierung */}
+        <div className="flex items-center gap-2">
+          {(['new', 'top', 'comments'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSort(s)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                sort === s
+                  ? 'bg-indigo-600/80 text-white border-indigo-500/50'
+                  : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50 hover:border-gray-700/50'
+              }`}
+            >
+              {s === 'new' && '🕐 Neu'}
+              {s === 'top' && '🔥 Top'}
+              {s === 'comments' && '💬 Meistkommentiert'}
+            </button>
+          ))}
         </div>
 
         {/* Witz des Tages */}

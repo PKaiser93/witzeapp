@@ -31,7 +31,13 @@ export class WitzeService {
     userId?: number,
     kategorie?: string,
     search?: string,
+    sort?: string,
   ): Promise<WitzResponse[]> {
+    let orderBy: any = { createdAt: 'desc' };
+
+    if (sort === 'top') orderBy = { likeLikes: { _count: 'desc' } };
+    if (sort === 'comments') orderBy = { comments: { _count: 'desc' } };
+
     const witze = await this.prisma.witz.findMany({
       where: {
         ...(kategorie
@@ -53,7 +59,7 @@ export class WitzeService {
           ? { where: { userId }, select: { id: true } }
           : undefined,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
     });
 
     return witze.map((w) => ({
