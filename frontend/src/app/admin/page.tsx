@@ -27,6 +27,14 @@ interface AppConfig {
   description: string | null;
 }
 
+interface Report {
+  id: number;
+  reason: string;
+  createdAt: string;
+  witz: { id: number; text: string; authorId: number };
+  user: { username: string };
+}
+
 function getAuthHeader() {
   const token = localStorage.getItem('token');
   return { Authorization: `Bearer ${token}` };
@@ -39,6 +47,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<AppConfig[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
 
   useEffect(() => {
     const role = localStorage.getItem('role');
@@ -56,6 +65,12 @@ export default function AdminPage() {
       const configRes = await fetch(`${API_URL}/admin/config`, {
         headers: getAuthHeader(),
       });
+
+      const reportsRes = await fetch(`${API_URL}/admin/reports`, {
+        headers: getAuthHeader(),
+      });
+      if (reportsRes.ok) setReports(await reportsRes.json());
+
       if (configRes.ok) setConfig(await configRes.json());
       if (statsRes.ok) setStats(await statsRes.json());
       if (usersRes.ok) setUsers(await usersRes.json());
@@ -63,6 +78,23 @@ export default function AdminPage() {
     };
     load();
   }, [router]);
+
+  const resolveReport = async (reportId: number) => {
+    const res = await fetch(`${API_URL}/admin/reports/${reportId}/resolve`, {
+      method: 'PATCH',
+      headers: getAuthHeader(),
+    });
+    if (res.ok) setReports((prev) => prev.filter((r) => r.id !== reportId));
+  };
+
+  const deleteReportedWitz = async (witzId: number) => {
+    if (!confirm('Witz wirklich löschen?')) return;
+    const res = await fetch(`${API_URL}/admin/reports/${witzId}/witz`, {
+      method: 'DELETE',
+      headers: getAuthHeader(),
+    });
+    if (res.ok) setReports((prev) => prev.filter((r) => r.witz.id !== witzId));
+  };
 
   const updateRole = async (userId: number, role: string) => {
     const res = await fetch(`${API_URL}/admin/users/${userId}/role`, {
@@ -191,6 +223,61 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Meldungen */}
+        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
+          <h2 className="text-xl font-black text-white mb-4">
+            🚩 Meldungen
+            {reports.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-red-500/20 text-red-300 text-sm rounded-full border border-red-500/30">
+                {reports.length}
+              </span>
+            )}
+          </h2>
+
+          {reports.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">
+              Keine offenen Meldungen
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {reports.map((r) => (
+                <div
+                  key={r.id}
+                  className="p-4 bg-gray-800/50 rounded-2xl border border-red-500/20"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-semibold mb-1">
+                        @{r.user.username} hat gemeldet
+                      </p>
+                      <p className="text-gray-400 text-xs mb-2">
+                        Grund: <span className="text-red-300">{r.reason}</span>
+                      </p>
+                      <p className="text-gray-500 text-xs line-clamp-2">
+                        "{r.witz.text}"
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => resolveReport(r.id)}
+                        className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 text-xs font-medium rounded-xl transition-all"
+                      >
+                        ✓ Ignorieren
+                      </button>
+                      <button
+                        onClick={() => deleteReportedWitz(r.witz.id)}
+                        className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 text-xs font-medium rounded-xl transition-all"
+                      >
+                        🗑️ Löschen
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* App Config */}

@@ -224,4 +224,10 @@ export class WitzeService {
       .sort((a, b) => b.likesReceived - a.likesReceived)
       .slice(0, 10);
   }
+
+  async report(witzId: number, userId: number, reason: string) {
+    return this.prisma.report.create({
+      data: { witzId, userId, reason },
+    });
+  }
 }

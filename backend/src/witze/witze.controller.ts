@@ -86,4 +86,14 @@ export class WitzeController {
   like(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
     return this.witzeService.like(id, user.sub);
   }
+
+  @Post(':id/report')
+  @UseGuards(JwtAuthGuard)
+  report(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('reason') reason: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.witzeService.report(id, user.sub, reason);
+  }
 }

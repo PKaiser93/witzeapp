@@ -52,4 +52,28 @@ export class AdminService {
       data: { value },
     });
   }
+
+  async getReports() {
+    return this.prisma.report.findMany({
+      where: { resolved: false },
+      include: {
+        witz: { select: { id: true, text: true, authorId: true } },
+        user: { select: { username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async resolveReport(reportId: number) {
+    return this.prisma.report.update({
+      where: { id: reportId },
+      data: { resolved: true },
+    });
+  }
+
+  async deleteReportedWitz(witzId: number) {
+    await this.prisma.report.deleteMany({ where: { witzId } });
+    await this.prisma.like.deleteMany({ where: { witzId } });
+    return this.prisma.witz.delete({ where: { id: witzId } });
+  }
 }

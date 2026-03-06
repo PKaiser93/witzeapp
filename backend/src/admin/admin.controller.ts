@@ -51,4 +51,19 @@ export class AdminController {
   updateConfig(@Param('key') key: string, @Body('value') value: string) {
     return this.adminService.updateConfig(key, value);
   }
+
+  @Get('reports')
+  getReports() {
+    return this.adminService.getReports();
+  }
+
+  @Patch('reports/:id/resolve')
+  resolveReport(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.resolveReport(id);
+  }
+
+  @Delete('reports/:witzId/witz')
+  deleteReportedWitz(@Param('witzId', ParseIntPipe) witzId: number) {
+    return this.adminService.deleteReportedWitz(witzId);
+  }
 }

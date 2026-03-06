@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useAppConfig } from '@/context/AppConfigContext';
+import ReportModal from '@/components/ReportModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -56,7 +57,8 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState<'new' | 'top' | 'comments'>('new');
-  const { feature_likes, feature_comments } = useAppConfig();
+  const { feature_likes, feature_comments, feature_report } = useAppConfig();
+  const [reportingWitzId, setReportingWitzId] = useState<number | null>(null);
   const [commentTextMap, setCommentTextMap] = useState<Record<number, string>>(
     {}
   );
@@ -418,6 +420,18 @@ export default function HomePage() {
                     💬 <span>{w.commentCount ?? 0}</span>
                   </button>
                 )}
+
+                {feature_report && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReportingWitzId(w.id);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                  >
+                    🚩
+                  </button>
+                )}
               </div>
               {openComments === w.id && (
                 <div
@@ -490,6 +504,13 @@ export default function HomePage() {
           ))}
         </div>
       </div>
+
+      {reportingWitzId && (
+        <ReportModal
+          witzId={reportingWitzId}
+          onClose={() => setReportingWitzId(null)}
+        />
+      )}
     </AppLayout>
   );
 }

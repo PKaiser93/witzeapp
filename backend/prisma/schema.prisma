@@ -16,6 +16,7 @@ model User {
   likes    Like[]
   comments Comment[]
   notifications Notification[]
+  reports Report[]
 }
 
 model Kategorie {
@@ -39,6 +40,7 @@ model Witz {
   likeLikes   Like[] // ← RELATION (Array) — NEUER NAME!
   comments    Comment[]
   isEdited  Boolean  @default(false)
+  reports Report[]
 
   @@index([authorId])
   @@index([kategorieId])
@@ -83,6 +85,18 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Report {
+  id        Int      @id @default(autoincrement())
+  witzId    Int
+  userId    Int
+  reason    String
+  createdAt DateTime @default(now())
+  resolved  Boolean  @default(false)
+  witz      Witz     @relation(fields: [witzId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, witzId])
+}
 
 enum Role {
   USER
