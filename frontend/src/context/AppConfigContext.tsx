@@ -27,8 +27,11 @@ const AppConfigContext = createContext<AppConfig>(defaultConfig);
 
 export function AppConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<AppConfig>(defaultConfig);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    setIsAdmin(localStorage.getItem('role') === 'ADMIN');
+
     fetch(`${API_URL}/config`)
       .then((res) => res.json())
       .then((data) => {
@@ -42,13 +45,24 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
+  const resolvedConfig = isAdmin
+    ? {
+        ...config,
+        feature_comments: true,
+        feature_likes: true,
+        feature_register: true,
+        maintenance: false,
+      }
+    : config;
+
   return (
-    <AppConfigContext.Provider value={config}>
+    <AppConfigContext.Provider value={resolvedConfig}>
       {children}
     </AppConfigContext.Provider>
   );
 }
 
 export function useAppConfig() {
-  return useContext(AppConfigContext);
+  const config = useContext(AppConfigContext);
+  return config;
 }
