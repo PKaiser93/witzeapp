@@ -13,6 +13,7 @@ export interface AuthUser {
   id: number;
   email: string;
   username: string;
+  role: string;
 }
 
 export interface LoginResult {
@@ -23,8 +24,8 @@ export interface LoginResult {
 @Injectable()
 export class AuthService {
   constructor(
-      private readonly prisma: PrismaService,
-      private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(data: RegisterData): Promise<AuthUser> {
@@ -44,6 +45,7 @@ export class AuthService {
         id: true,
         email: true,
         username: true,
+        role: true,
       },
     });
 
@@ -75,6 +77,7 @@ export class AuthService {
       sub: user.id,
       username: user.username,
       email: user.email,
+      role: user.role,
     };
 
     const token = await this.jwtService.signAsync(payload, {
@@ -87,6 +90,7 @@ export class AuthService {
         id: user.id,
         username: user.username,
         email: user.email,
+        role: user.role, // ← ergänzen
       },
     };
   }

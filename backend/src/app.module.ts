@@ -5,6 +5,7 @@ import { WitzeModule } from './witze/witze.module';
 import { AuthModule } from './auth/auth.module';
 import { KategorieModule } from './kategorie/kategorie.module';
 import { ProfileModule } from './profile/profile.module';
+import { CommentsModule } from './comments/comments.modul';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ProfileModule } from './profile/profile.module';
     KategorieModule,
     WitzeModule,
     ProfileModule,
+    CommentsModule,
   ],
 })
 export class AppModule {}

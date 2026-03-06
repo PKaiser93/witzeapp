@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { KategorieService } from './kategorie.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 interface CreateKategorieDto {
   name: string;
@@ -17,7 +19,8 @@ export class KategorieController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   async create(@Body() body: CreateKategorieDto) {
     return this.kategorieService.create(body.name, body.emoji);
   }

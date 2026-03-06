@@ -7,13 +7,14 @@ datasource db {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-  email    String @unique
+  id       Int       @id @default(autoincrement())
+  username String    @unique
+  email    String    @unique
   password String
-  role     Role   @default(USER)
+  role     Role      @default(USER)
   witze    Witz[]
   likes    Like[]
+  comments Comment[]
 }
 
 model Kategorie {
@@ -35,6 +36,7 @@ model Witz {
   author      User?      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   kategorie   Kategorie? @relation(fields: [kategorieId], references: [id])
   likeLikes   Like[] // ← RELATION (Array) — NEUER NAME!
+  comments    Comment[]
 
   @@index([authorId])
   @@index([kategorieId])
@@ -49,6 +51,16 @@ model Like {
   witz   Witz @relation(fields: [witzId], references: [id], onDelete: Cascade)
 
   @@unique([userId, witzId])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  text      String
+  authorId  Int
+  witzId    Int
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  witz      Witz     @relation(fields: [witzId], references: [id], onDelete: Cascade)
 }
 
 enum Role {

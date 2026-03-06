@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface WitzResponse {
@@ -9,6 +13,9 @@ export interface WitzResponse {
   likes: number;
   createdAt: Date;
   userLiked: boolean;
+  author?: { username: string } | null; // ← | null ergänzen
+  kategorie?: { name: string; emoji: string } | null; // ← | null ergänzen
+  commentCount?: number;
 }
 
 export interface LikeResponse {
@@ -20,8 +27,11 @@ export interface LikeResponse {
 export class WitzeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(userId?: number): Promise<WitzResponse[]> {
+  async findAll(userId?: number, kategorie?: string): Promise<WitzResponse[]> {
     const witze = await this.prisma.witz.findMany({
+      where: kategorie
+        ? { kategorie: { name: { equals: kategorie, mode: 'insensitive' } } }
+        : undefined,
       select: {
         id: true,
         text: true,
@@ -31,10 +41,10 @@ export class WitzeService {
         createdAt: true,
         author: { select: { username: true } },
         kategorie: { select: { name: true, emoji: true } },
-        _count: { select: { likeLikes: true } },
+        _count: { select: { likeLikes: true, comments: true } },
         likeLikes: userId
-            ? { where: { userId }, select: { id: true } }
-            : undefined,
+          ? { where: { userId }, select: { id: true } }
+          : undefined,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -43,6 +53,7 @@ export class WitzeService {
       ...w,
       likes: w._count.likeLikes ?? w.likes ?? 0,
       userLiked: userId ? (w.likeLikes?.length ?? 0) > 0 : false,
+      commentCount: w._count.comments ?? 0,
     }));
   }
 
@@ -57,7 +68,7 @@ export class WitzeService {
       data: {
         text,
         authorId,
-        kategorieId: kategorieId ?? null,
+        kategorieId: kategorieId ? Number(kategorieId) : null, // ← Number() ergänzen
       },
       include: { kategorie: true, author: true },
     });
@@ -77,16 +88,28 @@ export class WitzeService {
         author: { select: { username: true, email: true } },
         kategorie: true,
         _count: { select: { likeLikes: true } },
-        likeLikes: userId ? { where: { userId }, select: { id: true } } : false,
+        likeLikes: {
+          select: {
+            userId: true,
+            user: { select: { username: true } },
+          },
+          orderBy: { id: 'desc' },
+          take: 3,
+        },
       },
     });
 
     if (!witz) throw new NotFoundException('Witz nicht gefunden');
 
+    const likerNames = witz.likeLikes.map((l) => l.user.username);
+
     return {
       ...witz,
       likes: witz._count.likeLikes,
-      userLiked: userId ? (witz.likeLikes as { id: number }[]).length > 0 : false,
+      userLiked: userId
+        ? witz.likeLikes.some((l) => l.userId === userId)
+        : false,
+      likerNames,
     };
   }
 
@@ -94,7 +117,8 @@ export class WitzeService {
     const witz = await this.prisma.witz.findUnique({ where: { id } });
 
     if (!witz) throw new NotFoundException('Witz nicht gefunden');
-    if (witz.authorId !== userId) throw new ForbiddenException('Nicht dein Witz');
+    if (witz.authorId !== userId)
+      throw new ForbiddenException('Nicht dein Witz');
 
     await this.prisma.like.deleteMany({ where: { witzId: id } });
     return this.prisma.witz.delete({ where: { id } });

@@ -26,16 +26,18 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [kategorien, setKategorien] = useState<Kategorie[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    setIsAdmin(localStorage.getItem('role') === 'ADMIN');
     const load = async () => {
       try {
-        const res = await fetch(`${API_URL}/kategorien`);
+        const res = await fetch(`${API_URL}/witze/kategorien`);
         if (!res.ok) return;
         const data: Kategorie[] = await res.json();
         setKategorien(data);
       } catch {
-        // Kategorien konnten nicht geladen werden – Sidebar bleibt ohne Kategorien
+        // Kategorien konnten nicht geladen werden
       }
     };
     load();
@@ -52,58 +54,89 @@ export default function Sidebar() {
 
   const isKategorieActive = (path: string) => {
     const kategorie = new URLSearchParams(path.split('?')[1]).get('kategorie');
-    if (!kategorie) return pathname === '/';
-    return pathname.includes(kategorie);
+    if (!kategorie) {
+      if (typeof window === 'undefined') return false;
+      const currentKategorie = new URLSearchParams(window.location.search).get(
+        'kategorie'
+      );
+      return pathname === '/' && !currentKategorie;
+    }
+    if (typeof window === 'undefined') return false;
+    const currentKategorie = new URLSearchParams(window.location.search).get(
+      'kategorie'
+    );
+    return currentKategorie === kategorie;
   };
 
   return (
-      <aside className="w-64 bg-gray-900/80 backdrop-blur-xl border-r border-gray-800/50 fixed left-0 top-16 bottom-0 overflow-y-auto hidden md:block">
-        <div className="p-6 space-y-4">
-          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-2 mb-4">
-            Navigation
-          </p>
+    <aside className="w-64 bg-gray-900/80 backdrop-blur-xl border-r border-gray-800/50 fixed left-0 top-16 bottom-0 overflow-y-auto hidden md:block">
+      <div className="p-6 space-y-4">
+        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-2 mb-4">
+          Navigation
+        </p>
 
-          {NAV_ITEMS.map((item) => (
-              <button
-                  key={item.path}
-                  onClick={() => router.push(item.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.path}
+            onClick={() => router.push(item.path)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all
               ${
-                      pathname === item.path
-                          ? 'bg-indigo-600/80 text-white border border-indigo-500/50 shadow-lg shadow-indigo-500/10'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-800/50 border border-transparent hover:border-gray-700/50'
+                pathname === item.path
+                  ? 'bg-indigo-600/80 text-white border border-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50 border border-transparent hover:border-gray-700/50'
+              }`}
+          >
+            <span className="text-lg">{item.emoji}</span>
+            <span>{item.name}</span>
+          </button>
+        ))}
+
+        <hr className="border-gray-800/50 my-6" />
+
+        {isAdmin && (
+          <>
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-2 mb-4">
+              Admin
+            </p>
+            <button
+              onClick={() => router.push('/kategorien/neu')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all
+        ${
+          pathname === '/kategorien/neu'
+            ? 'bg-indigo-600/80 text-white border border-indigo-500/50 shadow-lg shadow-indigo-500/10'
+            : 'text-gray-400 hover:text-white hover:bg-gray-800/50 border border-transparent hover:border-gray-700/50'
+        }`}
+            >
+              <span className="text-lg">🏷️</span>
+              <span>Kategorie erstellen</span>
+            </button>
+            <hr className="border-gray-800/50 my-6" />
+          </>
+        )}
+
+        <div>
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-2 mb-4">
+            Kategorien
+          </p>
+          <div className="space-y-1">
+            {kategorienList.map((kat) => (
+              <button
+                key={kat.name}
+                onClick={() => router.push(kat.path)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:bg-gray-800/30 border border-transparent hover:border-gray-700/50
+                  ${
+                    isKategorieActive(kat.path)
+                      ? 'text-indigo-400 bg-indigo-900/30 border-indigo-500/30 font-semibold'
+                      : 'text-gray-400 hover:text-white'
                   }`}
               >
-                <span className="text-lg">{item.emoji}</span>
-                <span>{item.name}</span>
+                <span className="text-lg">{kat.emoji}</span>
+                <span className="truncate">{kat.name}</span>
               </button>
-          ))}
-
-          <hr className="border-gray-800/50 my-6" />
-
-          <div>
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-2 mb-4">
-              Kategorien
-            </p>
-            <div className="space-y-1">
-              {kategorienList.map((kat) => (
-                  <button
-                      key={kat.name}
-                      onClick={() => router.push(kat.path)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:bg-gray-800/30 border border-transparent hover:border-gray-700/50
-                  ${
-                          isKategorieActive(kat.path)
-                              ? 'text-indigo-400 bg-indigo-900/30 border-indigo-500/30 font-semibold'
-                              : 'text-gray-400 hover:text-white'
-                      }`}
-                  >
-                    <span className="text-lg">{kat.emoji}</span>
-                    <span className="truncate">{kat.name}</span>
-                  </button>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
-      </aside>
+      </div>
+    </aside>
   );
 }

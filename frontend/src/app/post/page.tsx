@@ -4,29 +4,43 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 
-axios.defaults.baseURL = 'http://localhost:3000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+interface Kategorie {
+  id: number;
+  name: string;
+  emoji: string;
+}
 
 export default function PostPage() {
-  const [kategorien, setKategorien] = useState([]);
+  const [kategorien, setKategorien] = useState<Kategorie[]>([]);
   const [text, setText] = useState('');
   const [kategorieId, setKategorieId] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    axios.get('/witze/kategorien').then(res => setKategorien(res.data));
+    axios
+      .get(`${API_URL}/witze/kategorien`)
+      .then((res) => setKategorien(res.data));
   }, []);
 
   const posten = async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
     try {
-      await axios.post('/witze', { text, kategorieId: kategorieId || null }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.post(
+        `${API_URL}/witze`,
+        { text, kategorieId: kategorieId || null },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       router.push('/');
     } catch (error) {
-      alert('Fehler beim Posten!');
+      setError('Fehler beim Posten. Bitte erneut versuchen.');
+      setTimeout(() => setError(null), 4000);
     }
     setLoading(false);
   };
@@ -57,13 +71,15 @@ export default function PostPage() {
               className="w-full p-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl text-xl text-white focus:outline-none focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-500/30 transition-all"
             >
               <option value="">🆓 Ohne Kategorie</option>
-              {kategorien.map((k: any) => (
+              {kategorien.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.emoji} {k.name}
                 </option>
               ))}
             </select>
           </div>
+
+          {error && <p className="text-red-400 text-sm">{error}</p>}
 
           <button
             onClick={posten}

@@ -1,5 +1,14 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Query,
+  Param,
+  Body,
+  ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { WitzeService } from './witze.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -17,8 +26,11 @@ export class WitzeController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  findAll(@CurrentUser() user: JwtPayload) {
-    return this.witzeService.findAll(user.sub);
+  findAll(
+    @CurrentUser() user: JwtPayload,
+    @Query('kategorie') kategorie?: string,
+  ) {
+    return this.witzeService.findAll(user.sub, kategorie);
   }
 
   @Get('public')
@@ -43,14 +55,22 @@ export class WitzeController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.witzeService.findOne(id);
+  @UseGuards(JwtAuthGuard)
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.witzeService.findOne(id, user.sub);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Body() body: CreateWitzDto, @CurrentUser() user: JwtPayload) {
-    return this.witzeService.create(body.text, user.sub, body.kategorieId ?? null);
+    return this.witzeService.create(
+      body.text,
+      user.sub,
+      body.kategorieId ?? null,
+    );
   }
 
   @Patch(':id/like')
