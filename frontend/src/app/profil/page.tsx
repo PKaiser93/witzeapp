@@ -22,7 +22,7 @@ interface ProfileData {
   email: string;
 }
 
-function getAuthHeader() {
+function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -33,6 +33,7 @@ export default function ProfilPage() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -55,6 +56,7 @@ export default function ProfilPage() {
   }, [router]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (!localStorage.getItem('token')) {
       router.push('/login');
       return;
@@ -69,11 +71,14 @@ export default function ProfilPage() {
       headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
       body: JSON.stringify({ text: editText.trim() }),
     });
-    if (res.ok) {
-      setEditingId(null);
-      setEditText('');
-      loadProfile();
+    if (!res.ok) {
+      setError('Fehler beim Speichern. Bitte erneut versuchen.');
+      return;
     }
+    setError(null);
+    setEditingId(null);
+    setEditText('');
+    loadProfile();
   };
 
   const deleteWitz = async (id: number) => {
@@ -82,7 +87,13 @@ export default function ProfilPage() {
       method: 'DELETE',
       headers: getAuthHeader(),
     });
-    if (res.ok) loadProfile();
+    if (!res.ok) {
+      setError('Fehler beim Löschen. Bitte erneut versuchen.');
+      setTimeout(() => setError(null), 4000);
+      return;
+    }
+    setError(null);
+    loadProfile();
   };
 
   const username = profile?.username ?? '';
@@ -136,10 +147,14 @@ export default function ProfilPage() {
               <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <span className="text-2xl">⭐</span>
               </div>
-              <p className="text-3xl font-black text-white">{profile?.rang ?? '🥉 Neuling'}</p>
+              <p className="text-xl font-black text-white">{profile?.rang ?? '🥉 Neuling'}</p>
               <p className="text-gray-400 text-sm mt-1 uppercase tracking-wider font-medium">Rang</p>
             </div>
           </div>
+
+          {error && (
+              <p className="text-red-400 text-sm mb-4 px-1">{error}</p>
+          )}
 
           {/* Meine Witze */}
           <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-8">

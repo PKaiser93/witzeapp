@@ -31,6 +31,7 @@ export default function HomePage() {
   const [witze, setWitze] = useState<Witz[]>([]);
   const [loading, setLoading] = useState(true);
   const [newWitz, setNewWitz] = useState('');
+  const [postError, setPostError] = useState<string | null>(null);
 
   const loadWitze = useCallback(async () => {
     setLoading(true);
@@ -40,16 +41,23 @@ export default function HomePage() {
           ? `${API_URL}/witze?kategorie=${kategorie}`
           : `${API_URL}/witze`;
 
-      const res = await fetch(url, { headers: getAuthHeader() });
+      const res = await fetch(url, { headers: getAuthHeader() }); // ← fehlt
+
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
       if (!res.ok) return;
       const data: Witz[] = await res.json();
       setWitze(data);
     } finally {
       setLoading(false);
     }
-  }, [searchParams]);
+  }, [searchParams, router]); // ← router ebenfalls in deps ergänzen
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
@@ -68,10 +76,13 @@ export default function HomePage() {
       body: JSON.stringify({ text }),
     });
 
-    if (res.ok) {
-      setNewWitz('');
-      loadWitze();
+    if (!res.ok) {
+      setPostError('Witz konnte nicht gepostet werden.');
+      setTimeout(() => setPostError(null), 4000);
+      return;
     }
+    setNewWitz('');
+    loadWitze();
   };
 
   const toggleLike = async (e: React.MouseEvent, witz: Witz) => {
@@ -144,7 +155,7 @@ export default function HomePage() {
                   <div
                       key={w.id}
                       className="group bg-gray-800/50 hover:bg-gray-750/70 border border-gray-700/50 rounded-2xl p-6 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-500/10"
-                      onClick={() => router.push(`/witz/${w.id}`)}
+                      onClick={() => router.push(`/witze/${w.id}`)}
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-10 h-10 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">

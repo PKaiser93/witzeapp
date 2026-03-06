@@ -4,19 +4,26 @@ import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import AppLayout from "@/components/AppLayout";
 
-export const dynamicParams = true;
-export const viewport = {
-    width: 'device-width',
-    initialScale: 1,
-    themeColor: '#3730a3'
-};
+interface WitzDetail {
+    id: number;
+    text: string;
+    likes: number;
+    userLiked: boolean;
+    createdAt: string;
+    isEdited: boolean;
+    author: { username: string };
+    kategorie?: { name: string; emoji: string };
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export default function WitzDetail() {
     const params = useParams();
     const router = useRouter();
-    const [witz, setWitz] = useState(null);
+    const [witz, setWitz] = useState<WitzDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [likeError, setLikeError] = useState<string | null>(null);
 
     const id = params?.id ? parseInt(params.id as string, 10) : 0;
 
@@ -38,7 +45,7 @@ export default function WitzDetail() {
                 return;
             }
 
-            const { data } = await axios.get(`/witz/${id}`, {
+            const { data } = await axios.get(`${API_URL}/witze/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 5000  // 5s Timeout
             });
@@ -66,17 +73,16 @@ export default function WitzDetail() {
                 return;
             }
 
-            await axios.patch(`/witz/${id}/like`, {}, {
+            await axios.patch(`${API_URL}/witze/${id}/like`, {}, {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 3000
             });
-
-            router.refresh();  // 🔄 Neu laden (sicher!)
+            await loadWitz();
         } catch (err: any) {
-            console.error('Like fehlgeschlagen:', err);
-            alert('Like konnte nicht gespeichert werden.');
+            setLikeError('Like konnte nicht gespeichert werden.');
+            setTimeout(() => setLikeError(null), 4000);
         }
-    }, [id, witz, router]);
+    }, [id, witz, router, loadWitz]);
 
     useEffect(() => {
         loadWitz();
@@ -150,6 +156,8 @@ export default function WitzDetail() {
                             </div>
                         </div>
                     </div>
+
+                    {likeError && <p className="text-red-400 text-sm mb-2">{likeError}</p>}
 
                     {/* Like Button */}
                     <div className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-2xl border border-gray-700/50 ml-auto w-fit">
