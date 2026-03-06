@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import { useAppConfig } from '@/context/AppConfigContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -55,6 +56,7 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState<'new' | 'top' | 'comments'>('new');
+  const { feature_likes, feature_comments } = useAppConfig();
   const [commentTextMap, setCommentTextMap] = useState<Record<number, string>>(
     {}
   );
@@ -332,6 +334,8 @@ export default function HomePage() {
           </div>
         </div>
 
+        {postError && <p className="text-red-400 text-sm mb-3">{postError}</p>}
+
         {/* Witze Liste */}
         <div className="space-y-3">
           {witze.map((w) => (
@@ -389,27 +393,31 @@ export default function HomePage() {
                 className="flex items-center gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  onClick={(e) => toggleLike(e, w)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all text-sm font-medium ${
-                    w.userLiked
-                      ? 'text-red-400 bg-red-500/10 border border-red-500/30'
-                      : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 border border-transparent'
-                  }`}
-                >
-                  ♥ <span>{w.likes ?? 0}</span>
-                </button>
+                {feature_likes && (
+                  <button
+                    onClick={(e) => toggleLike(e, w)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all text-sm font-medium ${
+                      w.userLiked
+                        ? 'text-red-400 bg-red-500/10 border border-red-500/30'
+                        : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 border border-transparent'
+                    }`}
+                  >
+                    ♥ <span>{w.likes ?? 0}</span>
+                  </button>
+                )}
 
-                <button
-                  onClick={(e) => toggleComments(e, w.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
-                    openComments === w.id
-                      ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30'
-                      : 'text-gray-500 hover:text-white hover:bg-gray-800/50 border-transparent hover:border-gray-700/50'
-                  }`}
-                >
-                  💬 <span>{w.commentCount ?? 0}</span>
-                </button>
+                {feature_comments && (
+                  <button
+                    onClick={(e) => toggleComments(e, w.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                      openComments === w.id
+                        ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30'
+                        : 'text-gray-500 hover:text-white hover:bg-gray-800/50 border-transparent hover:border-gray-700/50'
+                    }`}
+                  >
+                    💬 <span>{w.commentCount ?? 0}</span>
+                  </button>
+                )}
               </div>
               {openComments === w.id && (
                 <div

@@ -15,6 +15,14 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registerEnabled, setRegisterEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_URL}/config`)
+      .then((res) => res.json())
+      .then((data) => setRegisterEnabled(data.feature_register !== 'false'))
+      .catch(() => {});
+  }, []);
 
   const checkUsername = useCallback(async (name: string) => {
     if (!name.trim()) {
@@ -51,6 +59,10 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
+    if (!registerEnabled) {
+      setError('Registrierung ist derzeit deaktiviert.');
+      return;
+    }
     if (password !== confirm) {
       setError('Passwörter stimmen nicht überein.');
       return;
@@ -111,114 +123,132 @@ export default function RegisterPage() {
             <p className="text-gray-400 text-sm">Erstelle deinen Account</p>
           </div>
 
-          <form onSubmit={handleRegister} className="space-y-5">
-            <div>
-              <label className="block text-gray-300 font-medium mb-2 text-sm">
-                E-Mail
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
-              />
+          {!registerEnabled ? (
+            <div className="text-center py-8">
+              <span className="text-4xl mb-4 block">🔒</span>
+              <p className="text-red-400 font-semibold mb-2">
+                Registrierung deaktiviert
+              </p>
+              <p className="text-gray-500 text-sm">
+                Die Registrierung ist derzeit nicht möglich.
+              </p>
+              <button
+                onClick={() => router.push('/login')}
+                className="mt-6 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all text-sm"
+              >
+                Zum Login
+              </button>
             </div>
-
-            <div>
-              <label className="block text-gray-300 font-medium mb-2 text-sm">
-                Username
-              </label>
-              <div className="relative">
+          ) : (
+            <form onSubmit={handleRegister} className="space-y-5">
+              <div>
+                <label className="block text-gray-300 font-medium mb-2 text-sm">
+                  E-Mail
+                </label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Dein öffentlicher Username"
-                  className={`w-full px-4 py-3 pr-20 rounded-xl bg-gray-800/50 border text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
-                    username && !usernameAvailable
-                      ? 'border-red-400 focus:ring-red-400'
-                      : 'border-gray-700/50 focus:border-transparent'
-                  }`}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
                 />
-                {username && (
-                  <span
-                    className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium ${
-                      usernameAvailable ? 'text-green-400' : 'text-red-400'
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-medium mb-2 text-sm">
+                  Username
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Dein öffentlicher Username"
+                    className={`w-full px-4 py-3 pr-20 rounded-xl bg-gray-800/50 border text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                      username && !usernameAvailable
+                        ? 'border-red-400 focus:ring-red-400'
+                        : 'border-gray-700/50 focus:border-transparent'
                     }`}
+                  />
+                  {username && (
+                    <span
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium ${
+                        usernameAvailable ? 'text-green-400' : 'text-red-400'
+                      }`}
+                    >
+                      {usernameAvailable ? '✓ Frei' : '✗ Belegt'}
+                    </span>
+                  )}
+                </div>
+                {!usernameAvailable && usernameSuggestion && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername(usernameSuggestion);
+                      setUsernameAvailable(true);
+                      setError('');
+                    }}
+                    className="mt-2 w-full bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-300 px-3 py-2 text-xs rounded-lg font-medium transition-all"
                   >
-                    {usernameAvailable ? '✓ Frei' : '✗ Belegt'}
-                  </span>
+                    🔮 Vorschlag: @{usernameSuggestion}
+                  </button>
                 )}
               </div>
-              {!usernameAvailable && usernameSuggestion && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUsername(usernameSuggestion);
-                    setUsernameAvailable(true);
-                    setError('');
-                  }}
-                  className="mt-2 w-full bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-300 px-3 py-2 text-xs rounded-lg font-medium transition-all"
-                >
-                  🔮 Vorschlag: @{usernameSuggestion}
-                </button>
-              )}
-            </div>
 
-            <div>
-              <label className="block text-gray-300 font-medium mb-2 text-sm">
-                Passwort
-              </label>
-              <div className="relative">
+              <div>
+                <label className="block text-gray-300 font-medium mb-2 text-sm">
+                  Passwort
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mindestens 6 Zeichen"
+                    className="w-full px-4 py-3 pr-12 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-300 font-medium mb-2 text-sm">
+                  Passwort bestätigen
+                </label>
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mindestens 6 Zeichen"
-                  className="w-full px-4 py-3 pr-12 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="Passwort wiederholen"
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
-                >
-                  {showPassword ? '🙈' : '👁️'}
-                </button>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-gray-300 font-medium mb-2 text-sm">
-                Passwort bestätigen
-              </label>
-              <input
-                type="password"
-                required
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Passwort wiederholen"
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
-              />
-            </div>
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-xl text-sm">
+                  ⚠️ {error}
+                </div>
+              )}
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-xl text-sm">
-                ⚠️ {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/25 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Registrieren...' : 'Account erstellen 🎉'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/25 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Registrieren...' : 'Account erstellen 🎉'}
+              </button>
+            </form>
+          )}
 
           <div className="text-center mt-6 pt-6 border-t border-gray-800">
             <p className="text-gray-400 text-sm">
