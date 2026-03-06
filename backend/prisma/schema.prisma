@@ -37,6 +37,7 @@ model Witz {
   kategorie   Kategorie? @relation(fields: [kategorieId], references: [id])
   likeLikes   Like[] // ← RELATION (Array) — NEUER NAME!
   comments    Comment[]
+  isEdited  Boolean  @default(false)
 
   @@index([authorId])
   @@index([kategorieId])

@@ -58,8 +58,16 @@ export class WitzeService {
   }
 
   async findRandom() {
+    const count = await this.prisma.witz.count();
+    if (count === 0) return null;
+    const skip = Math.floor(Math.random() * count);
     return this.prisma.witz.findFirst({
-      orderBy: { id: 'desc' },
+      skip,
+      include: {
+        author: { select: { username: true } },
+        kategorie: { select: { name: true, emoji: true } },
+        _count: { select: { likeLikes: true } },
+      },
     });
   }
 
@@ -150,5 +158,37 @@ export class WitzeService {
     return this.prisma.kategorie.findMany({
       select: { id: true, name: true, emoji: true },
     });
+  }
+
+  async getLeaderboard() {
+    const users = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        _count: {
+          select: {
+            witze: true,
+            likes: true,
+          },
+        },
+        witze: {
+          select: {
+            _count: {
+              select: { likeLikes: true },
+            },
+          },
+        },
+      },
+    });
+
+    return users
+      .map((u) => ({
+        id: u.id,
+        username: u.username,
+        witzeCount: u._count.witze,
+        likesReceived: u.witze.reduce((sum, w) => sum + w._count.likeLikes, 0),
+      }))
+      .sort((a, b) => b.likesReceived - a.likesReceived)
+      .slice(0, 10);
   }
 }

@@ -29,6 +29,14 @@ interface Comment {
   author: { username: string };
 }
 
+interface WitzOfTheDay {
+  id: number;
+  text: string;
+  author?: { username: string };
+  kategorie?: { name: string; emoji: string };
+  _count: { likeLikes: number };
+}
+
 function getAuthHeader() {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -43,6 +51,7 @@ export default function HomePage() {
   const [postError, setPostError] = useState<string | null>(null);
   const [openComments, setOpenComments] = useState<number | null>(null);
   const [commentsMap, setCommentsMap] = useState<Record<number, Comment[]>>({});
+  const [witzOfTheDay, setWitzOfTheDay] = useState<WitzOfTheDay | null>(null);
   const [commentTextMap, setCommentTextMap] = useState<Record<number, string>>(
     {}
   );
@@ -137,6 +146,14 @@ export default function HomePage() {
       return;
     }
     loadWitze();
+
+    // Witz des Tages laden
+    fetch(`${API_URL}/witze/random`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setWitzOfTheDay(data))
+      .catch(() => {});
   }, [loadWitze, router]);
 
   const postWitz = async () => {
@@ -204,6 +221,46 @@ export default function HomePage() {
             </button>
           </div>
         </div>
+
+        {/* Witz des Tages */}
+        {witzOfTheDay && (
+          <div
+            className="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl border border-indigo-500/30 rounded-3xl p-6 cursor-pointer hover:border-indigo-500/50 transition-all"
+            onClick={() => router.push(`/witze/${witzOfTheDay.id}`)}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-yellow-400 text-lg">⭐</span>
+              <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                Witz des Tages
+              </span>
+            </div>
+            <p className="text-white text-lg leading-relaxed mb-4">
+              "{witzOfTheDay.text}"
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">
+                    {(witzOfTheDay.author?.username ?? 'G')
+                      .charAt(0)
+                      .toUpperCase()}
+                  </span>
+                </div>
+                <span className="text-gray-400 text-sm">
+                  @{witzOfTheDay.author?.username ?? 'Gast'}
+                </span>
+                {witzOfTheDay.kategorie && (
+                  <span className="text-indigo-400 text-xs">
+                    {witzOfTheDay.kategorie.emoji} {witzOfTheDay.kategorie.name}
+                  </span>
+                )}
+              </div>
+              <span className="text-gray-500 text-xs">
+                ❤️ {witzOfTheDay._count.likeLikes}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Quick Post */}
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">

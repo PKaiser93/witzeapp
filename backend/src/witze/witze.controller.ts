@@ -54,6 +54,12 @@ export class WitzeController {
     return this.witzeService.findByUser(user.sub);
   }
 
+  @Get('leaderboard')
+  @UseGuards(JwtAuthGuard)
+  getLeaderboard() {
+    return this.witzeService.getLeaderboard();
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   findOne(
