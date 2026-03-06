@@ -20,6 +20,7 @@ export interface ProfileResponse {
   rang: string;
   username: string;
   email: string;
+  role: string;
 }
 
 @Injectable()
@@ -43,7 +44,7 @@ export class ProfileService {
       this.prisma.like.count({ where: { witz: { authorId: userId } } }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { username: true, email: true },
+        select: { username: true, email: true, role: true },
       }),
     ]);
 
@@ -62,6 +63,7 @@ export class ProfileService {
       rang,
       username: user?.username ?? 'Unbekannt',
       email: user?.email ?? '',
+      role: user?.role ?? 'USER',
     };
   }
 

@@ -18,19 +18,20 @@ interface AppConfig {
 
 const defaultConfig: AppConfig = {
   maintenance: false,
-  feature_comments: true,
-  feature_likes: true,
-  feature_register: true,
+  feature_comments: false, // ← false
+  feature_likes: false, // ← false
+  feature_register: true, // ← true lassen damit Registrierung erstmal geht
 };
 
 const AppConfigContext = createContext<AppConfig>(defaultConfig);
 
 export function AppConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<AppConfig>(defaultConfig);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isPrivileged, setIsPrivileged] = useState(false);
 
   useEffect(() => {
-    setIsAdmin(localStorage.getItem('role') === 'ADMIN');
+    const role = localStorage.getItem('role');
+    setIsPrivileged(role === 'ADMIN' || role === 'BETA');
 
     fetch(`${API_URL}/config`)
       .then((res) => res.json())
@@ -45,7 +46,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
-  const resolvedConfig = isAdmin
+  const resolvedConfig = isPrivileged
     ? {
         ...config,
         feature_comments: true,

@@ -75,5 +75,6 @@ model AppConfig {
 enum Role {
   USER
   ADMIN
+  BETA
   MODERATOR
 }
