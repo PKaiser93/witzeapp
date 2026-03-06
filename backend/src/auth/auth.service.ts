@@ -73,6 +73,26 @@ export class AuthService {
       throw new UnauthorizedException('Ungültige Anmeldedaten');
     }
 
+    const ban = await this.prisma.ban.findUnique({
+      where: { userId: user.id },
+    });
+    if (ban?.active) {
+      if (!ban.expiresAt || ban.expiresAt > new Date()) {
+        const until = ban.expiresAt
+          ? `bis ${ban.expiresAt.toLocaleDateString('de-DE')}`
+          : 'permanent';
+        throw new UnauthorizedException(
+          `Dein Account ist gesperrt (${until}). Grund: ${ban.reason}`,
+        );
+      } else {
+        // Ban abgelaufen → deaktivieren
+        await this.prisma.ban.update({
+          where: { userId: user.id },
+          data: { active: false },
+        });
+      }
+    }
+
     const payload = {
       sub: user.id,
       username: user.username,

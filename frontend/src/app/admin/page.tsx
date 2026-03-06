@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BanModal from '@/components/BanModal';
+import WarnModal from '@/components/WarnModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -18,6 +20,7 @@ interface User {
   email: string;
   role: string;
   _count: { witze: number; comments: number };
+  ban?: { active: boolean; expiresAt: string | null; reason: string } | null;
 }
 
 interface AppConfig {
@@ -48,6 +51,51 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<AppConfig[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [banModal, setBanModal] = useState<{
+    userId: number;
+    username: string;
+  } | null>(null);
+  const [warnModal, setWarnModal] = useState<{
+    userId: number;
+    username: string;
+  } | null>(null);
+
+  const banUser = async (userId: number, reason: string, duration: string) => {
+    const res = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ reason, duration }),
+    });
+    if (res.ok) {
+      setBanModal(null);
+      const usersRes = await fetch(`${API_URL}/admin/users`, {
+        headers: getAuthHeader(),
+      });
+      if (usersRes.ok) setUsers(await usersRes.json());
+    }
+  };
+
+  const unbanUser = async (userId: number) => {
+    const res = await fetch(`${API_URL}/admin/users/${userId}/unban`, {
+      method: 'PATCH',
+      headers: getAuthHeader(),
+    });
+    if (res.ok) {
+      const usersRes = await fetch(`${API_URL}/admin/users`, {
+        headers: getAuthHeader(),
+      });
+      if (usersRes.ok) setUsers(await usersRes.json());
+    }
+  };
+
+  const warnUser = async (userId: number, reason: string) => {
+    const res = await fetch(`${API_URL}/admin/users/${userId}/warn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ reason }),
+    });
+    if (res.ok) setWarnModal(null);
+  };
 
   useEffect(() => {
     const role = localStorage.getItem('role');
@@ -213,6 +261,37 @@ export default function AdminPage() {
                   <option value="MODERATOR">MODERATOR</option>
                   <option value="ADMIN">ADMIN</option>
                 </select>
+                {/* Nach dem Role-Select */}
+                <button
+                  onClick={() =>
+                    setWarnModal({ userId: u.id, username: u.username })
+                  }
+                  className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 text-xs font-medium rounded-xl transition-all"
+                  title="Verwarnen"
+                >
+                  ⚠️
+                </button>
+
+                {u.ban?.active ? (
+                  <button
+                    onClick={() => unbanUser(u.id)}
+                    className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 text-xs font-medium rounded-xl transition-all"
+                    title="Entbannen"
+                  >
+                    🔓
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      setBanModal({ userId: u.id, username: u.username })
+                    }
+                    className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-300 text-xs font-medium rounded-xl transition-all"
+                    title="Bannen"
+                  >
+                    🔨
+                  </button>
+                )}
+
                 <button
                   onClick={() => deleteUser(u.id, u.username)}
                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-lg transition-all text-sm"
@@ -316,6 +395,22 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+      {banModal && (
+        <BanModal
+          username={banModal.username}
+          onBan={(reason, duration) =>
+            banUser(banModal.userId, reason, duration)
+          }
+          onClose={() => setBanModal(null)}
+        />
+      )}
+      {warnModal && (
+        <WarnModal
+          username={warnModal.username}
+          onWarn={(reason) => warnUser(warnModal.userId, reason)}
+          onClose={() => setWarnModal(null)}
+        />
+      )}
     </AppLayout>
   );
 }

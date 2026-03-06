@@ -1,18 +1,34 @@
 'use client';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 import { useAppConfig } from '@/context/AppConfigContext';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+
 function MaintenanceGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { maintenance } = useAppConfig();
 
-  if (maintenance) {
-    router.push('/maintenance');
-    return null;
-  }
+  useEffect(() => {
+    if (maintenance) {
+      router.push('/maintenance');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    fetch(`${API_URL}/auth/me/ban-status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.banned) router.push('/banned');
+      })
+      .catch(() => {});
+  }, [router, maintenance]);
 
   return <>{children}</>;
 }

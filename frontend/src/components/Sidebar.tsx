@@ -25,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const ADMIN_ITEMS: NavItem[] = [
   { emoji: '⚙️', name: 'Admin Panel', path: '/admin' },
+  { emoji: '📋', name: 'Audit-Log', path: '/admin/logs' },
   { emoji: '🏷️', name: 'Kategorie erstellen', path: '/kategorien/neu' },
 ];
 

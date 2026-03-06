@@ -1,11 +1,26 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { BanService } from '../admin/ban.service';
+import type { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly banService: BanService,
+  ) {}
 
   @Post('register')
   async register(@Body() body: RegisterDto) {
@@ -27,5 +42,11 @@ export class AuthController {
   @Get('suggest-username')
   async suggestUsername(@Query('base') base: string) {
     return this.authService.suggestUsername(base);
+  }
+
+  @Get('me/ban-status')
+  @UseGuards(JwtAuthGuard)
+  async getBanStatus(@CurrentUser() user: JwtPayload) {
+    return this.banService.getBanStatus(user.sub);
   }
 }

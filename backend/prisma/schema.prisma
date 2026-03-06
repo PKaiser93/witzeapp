@@ -17,6 +17,12 @@ model User {
   comments Comment[]
   notifications Notification[]
   reports Report[]
+  auditLogs AuditLog[]
+
+  ban            Ban?
+  warnings       Warning[]
+  bansGiven      Ban[]     @relation("BannedBy")
+  warningsGiven  Warning[] @relation("WarnedBy")
 }
 
 model Kategorie {
@@ -96,6 +102,39 @@ model Report {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, witzId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  entity    String
+  entityId  Int?
+  adminId   Int
+  details   String?
+  createdAt DateTime @default(now())
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model Ban {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique
+  reason    String
+  bannedBy  Int
+  bannedAt  DateTime  @default(now())
+  expiresAt DateTime?  // null = permanent
+  active    Boolean   @default(true)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin     User      @relation("BannedBy", fields: [bannedBy], references: [id])
+}
+
+model Warning {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  reason    String
+  warnedBy  Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin     User     @relation("WarnedBy", fields: [warnedBy], references: [id])
 }
 
 enum Role {

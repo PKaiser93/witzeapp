@@ -1,9 +1,78 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
+
+  async updateUserRole(userId: number, role: string, adminId: number) {
+    const target = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    });
+
+    const result = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: role as any },
+      select: { id: true, username: true, role: true },
+    });
+
+    await this.auditService.log(
+      adminId,
+      'UPDATE_ROLE',
+      'User',
+      userId,
+      `@${target?.username} → Rolle geändert zu ${role}`,
+    );
+
+    return result;
+  }
+
+  async deleteUser(userId: number, adminId: number) {
+    const target = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    });
+
+    await this.auditService.log(
+      adminId,
+      'DELETE_USER',
+      'User',
+      userId,
+      `@${target?.username} gelöscht`,
+    );
+
+    return this.prisma.user.delete({ where: { id: userId } });
+  }
+
+  async resolveReport(reportId: number, adminId: number) {
+    await this.auditService.log(adminId, 'RESOLVE_REPORT', 'Report', reportId);
+    return this.prisma.report.update({
+      where: { id: reportId },
+      data: { resolved: true },
+    });
+  }
+
+  async deleteReportedWitz(witzId: number, adminId: number) {
+    await this.auditService.log(
+      adminId,
+      'DELETE_WITZ',
+      'Witz',
+      witzId,
+      'Witz durch Meldung gelöscht',
+    );
+    await this.prisma.report.deleteMany({ where: { witzId } });
+    await this.prisma.like.deleteMany({ where: { witzId } });
+    return this.prisma.witz.delete({ where: { id: witzId } });
+  }
+
+  async getLogs() {
+    return this.auditService.getLogs();
+  }
 
   async getStats() {
     const [userCount, witzCount, commentCount, likeCount] = await Promise.all([
@@ -23,21 +92,12 @@ export class AdminService {
         email: true,
         role: true,
         _count: { select: { witze: true, comments: true } },
+        ban: {
+          select: { active: true, expiresAt: true, reason: true },
+        },
       },
       orderBy: { id: 'asc' },
     });
-  }
-
-  async updateUserRole(userId: number, role: string) {
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { role: role as any },
-      select: { id: true, username: true, role: true },
-    });
-  }
-
-  async deleteUser(userId: number) {
-    return this.prisma.user.delete({ where: { id: userId } });
   }
 
   async getConfig() {
@@ -62,18 +122,5 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
     });
-  }
-
-  async resolveReport(reportId: number) {
-    return this.prisma.report.update({
-      where: { id: reportId },
-      data: { resolved: true },
-    });
-  }
-
-  async deleteReportedWitz(witzId: number) {
-    await this.prisma.report.deleteMany({ where: { witzId } });
-    await this.prisma.like.deleteMany({ where: { witzId } });
-    return this.prisma.witz.delete({ where: { id: witzId } });
   }
 }
