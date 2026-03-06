@@ -8,6 +8,7 @@ import { ProfileModule } from './profile/profile.module';
 import { CommentsModule } from './comments/comments.modul';
 import { AdminModule } from './admin/admin.module';
 import { AppConfigModule } from './config/config.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AppConfigModule } from './config/config.module';
     CommentsModule,
     AdminModule,
     AppConfigModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

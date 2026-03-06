@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface WitzResponse {
   id: number;
@@ -25,7 +26,10 @@ export interface LikeResponse {
 
 @Injectable()
 export class WitzeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findAll(
     userId?: number,
@@ -163,7 +167,23 @@ export class WitzeService {
     const witz = await this.prisma.witz.update({
       where: { id },
       data: { likes: { increment: 1 } },
+      include: { author: { select: { username: true } } },
     });
+
+    // Notification für Witz-Autor
+    if (witz.authorId && witz.authorId !== userId) {
+      const liker = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true },
+      });
+      await this.notificationsService.createNotification(
+        witz.authorId,
+        'like',
+        `@${liker?.username} hat deinen Witz geliked`,
+        id,
+      );
+    }
+
     return { liked: true, likes: witz.likes };
   }
 

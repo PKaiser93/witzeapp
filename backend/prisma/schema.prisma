@@ -15,6 +15,7 @@ model User {
   witze    Witz[]
   likes    Like[]
   comments Comment[]
+  notifications Notification[]
 }
 
 model Kategorie {
@@ -69,6 +70,17 @@ model AppConfig {
   key         String  @unique
   value       String
   description String?
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String   // 'like' | 'comment'
+  message   String
+  witzId    Int?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 
