@@ -64,6 +64,14 @@ model Comment {
   witz      Witz     @relation(fields: [witzId], references: [id], onDelete: Cascade)
 }
 
+model AppConfig {
+  id          Int     @id @default(autoincrement())
+  key         String  @unique
+  value       String
+  description String?
+}
+
+
 enum Role {
   USER
   ADMIN

@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { KategorieModule } from './kategorie/kategorie.module';
 import { ProfileModule } from './profile/profile.module';
 import { CommentsModule } from './comments/comments.modul';
+import { AdminModule } from './admin/admin.module';
+import { AppConfigModule } from './config/config.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { CommentsModule } from './comments/comments.modul';
     WitzeModule,
     ProfileModule,
     CommentsModule,
+    AdminModule,
+    AppConfigModule,
   ],
 })
 export class AppModule {}
