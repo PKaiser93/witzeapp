@@ -29,8 +29,9 @@ export class WitzeController {
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query('kategorie') kategorie?: string,
+    @Query('search') search?: string,
   ) {
-    return this.witzeService.findAll(user.sub, kategorie);
+    return this.witzeService.findAll(user.sub, kategorie, search);
   }
 
   @Get('public')

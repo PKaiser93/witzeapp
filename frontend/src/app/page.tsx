@@ -52,6 +52,8 @@ export default function HomePage() {
   const [openComments, setOpenComments] = useState<number | null>(null);
   const [commentsMap, setCommentsMap] = useState<Record<number, Comment[]>>({});
   const [witzOfTheDay, setWitzOfTheDay] = useState<WitzOfTheDay | null>(null);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [commentTextMap, setCommentTextMap] = useState<Record<number, string>>(
     {}
   );
@@ -119,9 +121,10 @@ export default function HomePage() {
     setLoading(true);
     try {
       const kategorie = searchParams.get('kategorie');
-      const url = kategorie
-        ? `${API_URL}/witze?kategorie=${kategorie}`
-        : `${API_URL}/witze`;
+      const params = new URLSearchParams();
+      if (kategorie) params.set('kategorie', kategorie);
+      if (search) params.set('search', search);
+      const url = `${API_URL}/witze${params.toString() ? `?${params}` : ''}`;
 
       const res = await fetch(url, { headers: getAuthHeader() }); // ← fehlt
 
@@ -136,7 +139,12 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [searchParams, router]); // ← router ebenfalls in deps ergänzen
+  }, [searchParams, router, search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -147,7 +155,6 @@ export default function HomePage() {
     }
     loadWitze();
 
-    // Witz des Tages laden
     fetch(`${API_URL}/witze/random`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -220,6 +227,28 @@ export default function HomePage() {
               ➕ Neuer Witz
             </button>
           </div>
+        </div>
+
+        {/* Suche */}
+        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <span className="text-gray-500">🔍</span>
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Witze durchsuchen..."
+            className="flex-1 bg-transparent text-white placeholder-gray-500 focus:outline-none text-sm"
+          />
+          {searchInput && (
+            <button
+              onClick={() => {
+                setSearchInput('');
+                setSearch('');
+              }}
+              className="text-gray-500 hover:text-white transition-colors text-xs"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Witz des Tages */}

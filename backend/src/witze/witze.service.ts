@@ -27,11 +27,18 @@ export interface LikeResponse {
 export class WitzeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(userId?: number, kategorie?: string): Promise<WitzResponse[]> {
+  async findAll(
+    userId?: number,
+    kategorie?: string,
+    search?: string,
+  ): Promise<WitzResponse[]> {
     const witze = await this.prisma.witz.findMany({
-      where: kategorie
-        ? { kategorie: { name: { equals: kategorie, mode: 'insensitive' } } }
-        : undefined,
+      where: {
+        ...(kategorie
+          ? { kategorie: { name: { equals: kategorie, mode: 'insensitive' } } }
+          : {}),
+        ...(search ? { text: { contains: search, mode: 'insensitive' } } : {}),
+      },
       select: {
         id: true,
         text: true,
