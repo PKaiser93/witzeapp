@@ -23,6 +23,13 @@ interface ProfileData {
   role: string;
 }
 
+interface Warning {
+  id: number;
+  reason: string;
+  createdAt: string;
+  admin: { username: string };
+}
+
 function getRoleBadge(role: string) {
   switch (role) {
     case 'ADMIN':
@@ -64,12 +71,17 @@ export default function ProfilPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<Warning[]>([]);
 
   const loadProfile = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/profile`, {
         headers: getAuthHeader(),
       });
+      const warningsRes = await fetch(`${API_URL}/profile/warnings`, {
+        headers: getAuthHeader(),
+      });
+      if (warningsRes.ok) setWarnings(await warningsRes.json());
 
       if (res.status === 401) {
         localStorage.removeItem('token');
@@ -208,6 +220,36 @@ export default function ProfilPage() {
         </div>
 
         {error && <p className="text-red-400 text-sm mb-4 px-1">{error}</p>}
+
+        {warnings.length > 0 && (
+          <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/30 rounded-3xl p-6">
+            <h2 className="text-xl font-black text-red-300 mb-4">
+              ⚠️ Verwarnungen ({warnings.length})
+            </h2>
+            <div className="space-y-3">
+              {warnings.map((w) => (
+                <div
+                  key={w.id}
+                  className="p-4 bg-red-500/10 rounded-2xl border border-red-500/20"
+                >
+                  <p className="text-white text-sm font-medium mb-1">
+                    {w.reason}
+                  </p>
+                  <p className="text-gray-500 text-xs">
+                    von @{w.admin.username} •{' '}
+                    {new Date(w.createdAt).toLocaleString('de-DE', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Meine Witze */}
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-8">

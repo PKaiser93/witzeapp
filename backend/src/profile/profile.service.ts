@@ -103,4 +103,17 @@ export class ProfileService {
 
     return { ...updated, isEdited: true };
   }
+
+  async getWarnings(userId: number) {
+    return this.prisma.warning.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        reason: true,
+        createdAt: true,
+        admin: { select: { username: true } },
+      },
+    });
+  }
 }

@@ -38,6 +38,12 @@ interface Report {
   user: { username: string };
 }
 
+interface Warning {
+  id: number;
+  reason: string;
+  createdAt: string;
+}
+
 function getAuthHeader() {
   const token = localStorage.getItem('token');
   return { Authorization: `Bearer ${token}` };
@@ -51,6 +57,7 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<AppConfig[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [warningsMap, setWarningsMap] = useState<Record<number, Warning[]>>({});
   const [banModal, setBanModal] = useState<{
     userId: number;
     username: string;
@@ -95,6 +102,32 @@ export default function AdminPage() {
       body: JSON.stringify({ reason }),
     });
     if (res.ok) setWarnModal(null);
+  };
+
+  const loadWarnings = async (userId: number) => {
+    const res = await fetch(`${API_URL}/admin/users/${userId}/warnings`, {
+      headers: getAuthHeader(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setWarningsMap((prev) => ({ ...prev, [userId]: data }));
+    }
+  };
+
+  const deleteWarning = async (userId: number, warningId: number) => {
+    const res = await fetch(
+      `${API_URL}/admin/users/${userId}/warnings/${warningId}`,
+      {
+        method: 'DELETE',
+        headers: getAuthHeader(),
+      }
+    );
+    if (res.ok) {
+      setWarningsMap((prev) => ({
+        ...prev,
+        [userId]: prev[userId].filter((w) => w.id !== warningId),
+      }));
+    }
   };
 
   useEffect(() => {
@@ -235,70 +268,134 @@ export default function AdminPage() {
             {users.map((u) => (
               <div
                 key={u.id}
-                className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-2xl border border-gray-700/50"
+                className="flex flex-col gap-3 p-4 bg-gray-800/50 rounded-2xl border border-gray-700/50"
               >
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-sm font-bold">
-                    {u.username.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold">
-                    @{u.username}
-                  </p>
-                  <p className="text-gray-500 text-xs">
-                    {u.email} • {u._count.witze} Witze • {u._count.comments}{' '}
-                    Kommentare
-                  </p>
-                </div>
-                <select
-                  value={u.role}
-                  onChange={(e) => updateRole(u.id, e.target.value)}
-                  className="bg-gray-700/50 border border-gray-600/50 text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                >
-                  <option value="USER">USER</option>
-                  <option value="BETA">BETA</option>
-                  <option value="MODERATOR">MODERATOR</option>
-                  <option value="ADMIN">ADMIN</option>
-                </select>
-                {/* Nach dem Role-Select */}
-                <button
-                  onClick={() =>
-                    setWarnModal({ userId: u.id, username: u.username })
-                  }
-                  className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 text-xs font-medium rounded-xl transition-all"
-                  title="Verwarnen"
-                >
-                  ⚠️
-                </button>
-
-                {u.ban?.active ? (
-                  <button
-                    onClick={() => unbanUser(u.id)}
-                    className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 text-xs font-medium rounded-xl transition-all"
-                    title="Entbannen"
+                {/* Obere Zeile – Avatar, Info, Buttons */}
+                <div className="flex items-center gap-4">
+                  <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-sm font-bold">
+                      {u.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-semibold">
+                      @{u.username}
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      {u.email} • {u._count.witze} Witze • {u._count.comments}{' '}
+                      Kommentare
+                    </p>
+                    {u.ban?.active && (
+                      <p className="text-orange-400 text-xs mt-0.5">
+                        🔨 Gesperrt{' '}
+                        {u.ban.expiresAt
+                          ? `bis ${new Date(u.ban.expiresAt).toLocaleDateString('de-DE')}`
+                          : '(permanent)'}
+                      </p>
+                    )}
+                  </div>
+                  <select
+                    value={u.role}
+                    onChange={(e) => updateRole(u.id, e.target.value)}
+                    className="bg-gray-700/50 border border-gray-600/50 text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                   >
-                    🔓
-                  </button>
-                ) : (
+                    <option value="USER">USER</option>
+                    <option value="BETA">BETA</option>
+                    <option value="MODERATOR">MODERATOR</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+
                   <button
                     onClick={() =>
-                      setBanModal({ userId: u.id, username: u.username })
+                      setWarnModal({ userId: u.id, username: u.username })
                     }
-                    className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-300 text-xs font-medium rounded-xl transition-all"
-                    title="Bannen"
+                    className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 text-xs font-medium rounded-xl transition-all"
+                    title="Verwarnen"
                   >
-                    🔨
+                    ⚠️
                   </button>
-                )}
 
-                <button
-                  onClick={() => deleteUser(u.id, u.username)}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-lg transition-all text-sm"
-                  title="User löschen"
-                >
-                  🗑️
-                </button>
+                  <button
+                    onClick={() =>
+                      warningsMap[u.id] !== undefined
+                        ? setWarningsMap((prev) => {
+                            const next = { ...prev };
+                            delete next[u.id];
+                            return next;
+                          })
+                        : loadWarnings(u.id)
+                    }
+                    className="px-3 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 text-yellow-400 text-xs font-medium rounded-xl transition-all"
+                    title="Verwarnungen anzeigen"
+                  >
+                    📋 {warningsMap[u.id]?.length ?? '?'}
+                  </button>
+
+                  {u.ban?.active ? (
+                    <button
+                      onClick={() => unbanUser(u.id)}
+                      className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 text-xs font-medium rounded-xl transition-all"
+                      title="Entbannen"
+                    >
+                      🔓
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        setBanModal({ userId: u.id, username: u.username })
+                      }
+                      className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-300 text-xs font-medium rounded-xl transition-all"
+                      title="Bannen"
+                    >
+                      🔨
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => deleteUser(u.id, u.username)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-lg transition-all text-sm"
+                    title="User löschen"
+                  >
+                    🗑️
+                  </button>
+                </div>
+
+                {/* Verwarnungen Liste */}
+                {warningsMap[u.id] && warningsMap[u.id].length === 0 && (
+                  <p className="text-gray-500 text-xs text-center py-1">
+                    Keine Verwarnungen
+                  </p>
+                )}
+                {warningsMap[u.id]?.length > 0 && (
+                  <div className="space-y-2">
+                    {warningsMap[u.id].map((w) => (
+                      <div
+                        key={w.id}
+                        className="flex items-center justify-between px-3 py-2 bg-yellow-500/10 rounded-xl border border-yellow-500/20"
+                      >
+                        <div>
+                          <p className="text-yellow-200 text-xs font-medium">
+                            {w.reason}
+                          </p>
+                          <p className="text-gray-500 text-xs">
+                            {new Date(w.createdAt).toLocaleString('de-DE', {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => deleteWarning(u.id, w.id)}
+                          className="text-red-400 hover:text-red-300 text-xs p-1 rounded transition-all"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

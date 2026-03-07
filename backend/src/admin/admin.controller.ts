@@ -90,6 +90,15 @@ export class AdminController {
     return this.banService.getWarnings(id);
   }
 
+  @Delete('users/:userId/warnings/:warningId')
+  deleteWarning(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('warningId', ParseIntPipe) warningId: number,
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.banService.deleteWarning(warningId, admin.sub);
+  }
+
   @Get('config')
   getConfig() {
     return this.adminService.getConfig();

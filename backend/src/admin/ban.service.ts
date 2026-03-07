@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export const BAN_DURATIONS: Record<string, number | null> = {
   '1h': 1 * 60 * 60 * 1000,
@@ -19,7 +20,26 @@ export class BanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  async deleteWarning(warningId: number, adminId: number) {
+    const warning = await this.prisma.warning.findUnique({
+      where: { id: warningId },
+      include: { user: { select: { username: true } } },
+    });
+    if (!warning) throw new Error('Verwarnung nicht gefunden');
+
+    await this.auditService.log(
+      adminId,
+      'DELETE_WARNING',
+      'Warning',
+      warningId,
+      `Verwarnung von @${warning.user.username} gelöscht`,
+    );
+
+    return this.prisma.warning.delete({ where: { id: warningId } });
+  }
 
   async banUser(
     userId: number,
@@ -89,6 +109,13 @@ export class BanService {
     const warning = await this.prisma.warning.create({
       data: { userId, warnedBy: adminId, reason },
     });
+
+    // Notification
+    await this.notificationsService.createNotification(
+      userId,
+      'warning',
+      `Du hast eine Verwarnung erhalten: ${reason}`,
+    );
 
     await this.auditService.log(
       adminId,

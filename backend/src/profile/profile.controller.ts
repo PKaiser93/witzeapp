@@ -45,4 +45,10 @@ export class ProfileController {
   ) {
     return this.profileService.updateWitz(id, updateData.text, user.sub);
   }
+
+  @Get('warnings')
+  @UseGuards(JwtAuthGuard)
+  async getWarnings(@CurrentUser() user: JwtPayload) {
+    return this.profileService.getWarnings(user.sub);
+  }
 }
