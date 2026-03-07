@@ -51,4 +51,17 @@ export class ProfileController {
   async getWarnings(@CurrentUser() user: JwtPayload) {
     return this.profileService.getWarnings(user.sub);
   }
+
+  @Patch('password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Body() body: { oldPassword: string; newPassword: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.profileService.changePassword(
+      user.sub,
+      body.oldPassword,
+      body.newPassword,
+    );
+  }
 }

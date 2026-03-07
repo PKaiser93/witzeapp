@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 export interface ProfileWitz {
   id: number;
@@ -115,5 +116,35 @@ export class ProfileService {
         admin: { select: { username: true } },
       },
     });
+  }
+
+  async changePassword(
+    userId: number,
+    oldPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    });
+
+    if (!user) throw new NotFoundException('User nicht gefunden');
+
+    const isValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isValid) throw new ForbiddenException('Altes Passwort ist falsch');
+
+    if (newPassword.length < 6) {
+      throw new ForbiddenException(
+        'Neues Passwort muss mindestens 6 Zeichen lang sein',
+      );
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed },
+    });
+
+    return { success: true };
   }
 }

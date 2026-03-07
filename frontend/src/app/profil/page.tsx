@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -72,6 +73,7 @@ export default function ProfilPage() {
   const [editText, setEditText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -176,6 +178,12 @@ export default function ProfilPage() {
               className="px-6 py-2.5 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-sm font-medium"
             >
               ← Zurück zur Home
+            </button>
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="px-6 py-2.5 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-sm font-medium"
+            >
+              🔒 Passwort ändern
             </button>
           </div>
         </div>
@@ -389,6 +397,9 @@ export default function ProfilPage() {
           </div>
         </div>
       </div>
+      {showPasswordModal && (
+        <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
+      )}
     </AppLayout>
   );
 }
