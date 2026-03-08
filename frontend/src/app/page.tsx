@@ -65,6 +65,7 @@ export default function HomePage() {
   const [commentPostingMap, setCommentPostingMap] = useState<
     Record<number, boolean>
   >({});
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const toggleComments = async (e: React.MouseEvent, witzId: number) => {
     e.stopPropagation();
@@ -72,11 +73,11 @@ export default function HomePage() {
       setOpenComments(null);
       return;
     }
-    // Immer neu laden
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_URL}/witze/${witzId}/comments`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}/witze/${witzId}/comments`, { headers });
     if (res.ok) {
       const data: Comment[] = await res.json();
       setCommentsMap((prev) => ({ ...prev, [witzId]: data }));
@@ -134,18 +135,13 @@ export default function HomePage() {
 
       const res = await fetch(url, { headers: getAuthHeader() }); // ← fehlt
 
-      if (res.status === 401) {
-        localStorage.removeItem('token');
-        router.push('/login');
-        return;
-      }
       if (!res.ok) return;
       const data: Witz[] = await res.json();
       setWitze(data);
     } finally {
       setLoading(false);
     }
-  }, [searchParams, router, search, sort]);
+  }, [searchParams, search, sort]);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput), 300);
@@ -155,19 +151,14 @@ export default function HomePage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
+    setIsLoggedIn(!!token);
     loadWitze();
 
-    fetch(`${API_URL}/witze/random`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`${API_URL}/witze/random`)
       .then((res) => res.json())
       .then((data) => setWitzOfTheDay(data))
       .catch(() => {});
-  }, [loadWitze, router]);
+  }, [loadWitze]);
 
   const postWitz = async () => {
     const text = newWitz.trim();
@@ -190,6 +181,10 @@ export default function HomePage() {
 
   const toggleLike = async (e: React.MouseEvent, witz: Witz) => {
     e.stopPropagation();
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
 
     const res = await fetch(`${API_URL}/witze/${witz.id}/like`, {
       method: 'PATCH',
@@ -317,24 +312,48 @@ export default function HomePage() {
         )}
 
         {/* Quick Post */}
-        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
-          <div className="flex gap-3">
-            <input
-              value={newWitz}
-              onChange={(e) => setNewWitz(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && postWitz()}
-              placeholder="Schnell einen Witz posten..."
-              className="flex-1 px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
-            />
-            <button
-              onClick={postWitz}
-              disabled={!newWitz.trim()}
-              className="px-6 py-3 bg-indigo-600/50 hover:bg-indigo-500/70 text-white font-bold rounded-2xl border border-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              Posten
-            </button>
+        {isLoggedIn ? (
+          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
+            <div className="flex gap-3">
+              <input
+                value={newWitz}
+                onChange={(e) => setNewWitz(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && !e.shiftKey && postWitz()
+                }
+                placeholder="Schnell einen Witz posten..."
+                className="flex-1 px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent transition-all"
+              />
+              <button
+                onClick={postWitz}
+                disabled={!newWitz.trim()}
+                className="px-6 py-3 bg-indigo-600/50 hover:bg-indigo-500/70 text-white font-bold rounded-2xl border border-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Posten
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6 text-center">
+            <p className="text-gray-400 text-sm mb-3">
+              Melde dich an um Witze zu posten
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => router.push('/login')}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all text-sm"
+              >
+                Einloggen
+              </button>
+              <button
+                onClick={() => router.push('/register')}
+                className="px-6 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700/50 text-gray-300 font-bold rounded-xl transition-all text-sm"
+              >
+                Registrieren
+              </button>
+            </div>
+          </div>
+        )}
 
         {postError && <p className="text-red-400 text-sm mb-3">{postError}</p>}
 
@@ -421,7 +440,7 @@ export default function HomePage() {
                   </button>
                 )}
 
-                {feature_report && (
+                {feature_report && isLoggedIn && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -439,33 +458,46 @@ export default function HomePage() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Kommentar Eingabe */}
-                  <div className="flex gap-2">
-                    <input
-                      value={commentTextMap[w.id] ?? ''}
-                      onChange={(e) =>
-                        setCommentTextMap((prev) => ({
-                          ...prev,
-                          [w.id]: e.target.value,
-                        }))
-                      }
-                      onKeyDown={(e) =>
-                        e.key === 'Enter' &&
-                        !e.shiftKey &&
-                        postComment(e as any, w.id)
-                      }
-                      placeholder="Kommentar schreiben..."
-                      className="flex-1 px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm transition-all"
-                    />
-                    <button
-                      onClick={(e) => postComment(e, w.id)}
-                      disabled={
-                        !commentTextMap[w.id]?.trim() || commentPostingMap[w.id]
-                      }
-                      className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all text-sm"
-                    >
-                      ➤
-                    </button>
-                  </div>
+                  {isLoggedIn ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={commentTextMap[w.id] ?? ''}
+                        onChange={(e) =>
+                          setCommentTextMap((prev) => ({
+                            ...prev,
+                            [w.id]: e.target.value,
+                          }))
+                        }
+                        onKeyDown={(e) =>
+                          e.key === 'Enter' &&
+                          !e.shiftKey &&
+                          postComment(e as any, w.id)
+                        }
+                        placeholder="Kommentar schreiben..."
+                        className="flex-1 px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm transition-all"
+                      />
+                      <button
+                        onClick={(e) => postComment(e, w.id)}
+                        disabled={
+                          !commentTextMap[w.id]?.trim() ||
+                          commentPostingMap[w.id]
+                        }
+                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all text-sm"
+                      >
+                        ➤
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-xs text-center py-2">
+                      <button
+                        onClick={() => router.push('/login')}
+                        className="text-indigo-400 hover:text-indigo-300 font-medium"
+                      >
+                        Einloggen
+                      </button>{' '}
+                      um zu kommentieren
+                    </p>
+                  )}
 
                   {/* Kommentare */}
                   {(commentsMap[w.id] ?? []).length === 0 && (

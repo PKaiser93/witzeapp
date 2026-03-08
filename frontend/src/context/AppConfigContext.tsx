@@ -15,6 +15,8 @@ interface AppConfig {
   feature_likes: boolean;
   feature_register: boolean;
   feature_report: boolean;
+  announcement: string;
+  announcement_active: boolean;
 }
 
 const defaultConfig: AppConfig = {
@@ -23,6 +25,8 @@ const defaultConfig: AppConfig = {
   feature_likes: false, // ← false
   feature_register: true, // ← true lassen damit Registrierung erstmal geht
   feature_report: false,
+  announcement: '',
+  announcement_active: false,
 };
 
 const AppConfigContext = createContext<AppConfig>(defaultConfig);
@@ -44,6 +48,8 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
           feature_likes: data.feature_likes !== 'false',
           feature_register: data.feature_register !== 'false',
           feature_report: data.feature_report !== 'false',
+          announcement: data.announcement ?? '',
+          announcement_active: data.announcement_active === 'true',
         });
       })
       .catch(() => {});

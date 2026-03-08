@@ -9,9 +9,11 @@ import {
   Body,
   ParseIntPipe,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { WitzeService } from './witze.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -25,19 +27,23 @@ export class WitzeController {
   constructor(private readonly witzeService: WitzeService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   findAll(
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser() user: JwtPayload | null,
     @Query('kategorie') kategorie?: string,
     @Query('search') search?: string,
     @Query('sort') sort?: string,
   ) {
-    return this.witzeService.findAll(user.sub, kategorie, search, sort);
+    return this.witzeService.findAll(user?.sub, kategorie, search, sort);
   }
 
   @Get('public')
-  findAllPublic() {
-    return this.witzeService.findAll();
+  findAllPublic(
+    @Query('kategorie') kategorie?: string,
+    @Query('search') search?: string,
+    @Query('sort') sort?: string,
+  ) {
+    return this.witzeService.findAll(undefined, kategorie, search, sort);
   }
 
   @Get('random')
@@ -50,25 +56,24 @@ export class WitzeController {
     return this.witzeService.findAllKategorien();
   }
 
+  @Get('leaderboard')
+  getLeaderboard() {
+    return this.witzeService.getLeaderboard();
+  }
+
   @Get('my')
   @UseGuards(JwtAuthGuard)
   findMine(@CurrentUser() user: JwtPayload) {
     return this.witzeService.findByUser(user.sub);
   }
 
-  @Get('leaderboard')
-  @UseGuards(JwtAuthGuard)
-  getLeaderboard() {
-    return this.witzeService.getLeaderboard();
-  }
-
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   findOne(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser() user: JwtPayload | null,
   ) {
-    return this.witzeService.findOne(id, user.sub);
+    return this.witzeService.findOne(id, user?.sub);
   }
 
   @Post()

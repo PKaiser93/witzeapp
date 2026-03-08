@@ -259,6 +259,74 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Announcement */}
+        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
+          <h2 className="text-xl font-black text-white mb-4">
+            📢 Systembenachrichtigung
+          </h2>
+          <div className="space-y-3">
+            <textarea
+              value={config.find((c) => c.key === 'announcement')?.value ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setConfig((prev) =>
+                  prev.map((c) =>
+                    c.key === 'announcement' ? { ...c, value: val } : c
+                  )
+                );
+              }}
+              placeholder="Nachricht eingeben..."
+              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white text-sm resize-none h-24 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-gray-500"
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-400 text-sm">Aktiv</span>
+                <button
+                  onClick={() =>
+                    toggleConfig(
+                      'announcement_active',
+                      config.find((c) => c.key === 'announcement_active')
+                        ?.value ?? 'false'
+                    )
+                  }
+                  className={`relative w-12 h-6 rounded-full transition-all ${
+                    config.find((c) => c.key === 'announcement_active')
+                      ?.value === 'true'
+                      ? 'bg-indigo-600'
+                      : 'bg-gray-700'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      config.find((c) => c.key === 'announcement_active')
+                        ?.value === 'true'
+                        ? 'left-7'
+                        : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  const val =
+                    config.find((c) => c.key === 'announcement')?.value ?? '';
+                  fetch(`${API_URL}/admin/config/announcement`, {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...getAuthHeader(),
+                    },
+                    body: JSON.stringify({ value: val }),
+                  });
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-all"
+              >
+                Speichern
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* User Verwaltung */}
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
           <h2 className="text-xl font-black text-white mb-4">

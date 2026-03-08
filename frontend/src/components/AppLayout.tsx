@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 import { useAppConfig } from '@/context/AppConfigContext';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -37,6 +38,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-950">
       <Navbar />
+      <AnnouncementBanner />
       <Sidebar />
       <main className="md:ml-64 pt-16 min-h-screen">
         <div className="max-w-3xl mx-auto p-6">

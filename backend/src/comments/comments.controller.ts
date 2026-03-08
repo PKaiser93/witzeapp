@@ -18,7 +18,6 @@ export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   findAll(@Param('witzId', ParseIntPipe) witzId: number) {
     return this.commentsService.findByWitz(witzId);
   }
