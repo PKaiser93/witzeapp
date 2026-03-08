@@ -18,6 +18,7 @@ model User {
   notifications Notification[]
   reports Report[]
   auditLogs AuditLog[]
+  bio String? @default("")
 
   ban            Ban?
   warnings       Warning[]

@@ -25,6 +25,7 @@ interface ProfileData {
   username: string;
   email: string;
   role: string;
+  bio: string;
 }
 
 interface Warning {
@@ -78,6 +79,24 @@ export default function ProfilPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'witze' | 'verwarnungen'>('witze');
   const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioText, setBioText] = useState('');
+
+  const saveBio = async () => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}/profile/bio`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ bio: bioText }),
+    });
+    if (res.ok) {
+      setEditingBio(false);
+      setProfile((prev) => (prev ? { ...prev, bio: bioText } : prev));
+    }
+  };
 
   const loadProfile = useCallback(async () => {
     try {
@@ -195,6 +214,61 @@ export default function ProfilPage() {
               )}
             </div>
             <p className="text-gray-500 text-sm">{profile?.email}</p>
+            {/* Bio */}
+            <div className="mt-3">
+              {editingBio ? (
+                <div className="flex gap-2 items-start">
+                  <textarea
+                    value={bioText}
+                    onChange={(e) => setBioText(e.target.value)}
+                    maxLength={160}
+                    rows={2}
+                    className="flex-1 px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-gray-500"
+                    placeholder="Beschreibe dich in max. 160 Zeichen..."
+                    autoFocus
+                  />
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={saveBio}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-all"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingBio(false);
+                        setBioText(profile?.bio ?? '');
+                      }}
+                      className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition-all"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => {
+                    setEditingBio(true);
+                    setBioText(profile?.bio ?? '');
+                  }}
+                  className="group flex items-start gap-2 cursor-pointer"
+                >
+                  <p
+                    className={`text-sm ${profile?.bio ? 'text-gray-300' : 'text-gray-600 italic'}`}
+                  >
+                    {profile?.bio || 'Klicke um eine Bio hinzuzufügen...'}
+                  </p>
+                  <span className="text-gray-600 opacity-0 group-hover:opacity-100 transition-all text-xs">
+                    ✏️
+                  </span>
+                </div>
+              )}
+              {editingBio && (
+                <p className="text-gray-600 text-xs mt-1 text-right">
+                  {bioText.length}/160
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Stats Bar */}

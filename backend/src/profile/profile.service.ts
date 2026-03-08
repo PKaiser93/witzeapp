@@ -46,7 +46,7 @@ export class ProfileService {
       this.prisma.like.count({ where: { witz: { authorId: userId } } }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { username: true, email: true, role: true },
+        select: { username: true, email: true, role: true, bio: true },
       }),
     ]);
 
@@ -66,6 +66,7 @@ export class ProfileService {
       username: user?.username ?? 'Unbekannt',
       email: user?.email ?? '',
       role: user?.role ?? 'USER',
+      bio: user?.bio ?? '',
     };
   }
 
@@ -182,6 +183,16 @@ export class ProfileService {
       where: { id: userId },
       data: { username: trimmed },
       select: { id: true, username: true },
+    });
+  }
+
+  async updateBio(userId: number, bio: string) {
+    if (bio.length > 160)
+      throw new BadRequestException('Bio darf maximal 160 Zeichen lang sein');
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { bio: bio.trim() },
+      select: { id: true, bio: true },
     });
   }
 }
