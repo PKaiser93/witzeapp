@@ -147,4 +147,8 @@ export class ProfileService {
 
     return { success: true };
   }
+
+  async deleteAccount(userId: number) {
+    return this.prisma.user.delete({ where: { id: userId } });
+  }
 }

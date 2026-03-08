@@ -64,4 +64,10 @@ export class ProfileController {
       body.newPassword,
     );
   }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  async deleteAccount(@CurrentUser() user: JwtPayload) {
+    return this.profileService.deleteAccount(user.sub);
+  }
 }

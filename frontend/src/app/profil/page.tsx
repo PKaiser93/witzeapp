@@ -3,6 +3,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+import DeleteAccountModal from '@/components/DeleteAccountModal';
+import { useAppConfig } from '@/context/AppConfigContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -31,34 +33,31 @@ interface Warning {
   admin: { username: string };
 }
 
-function getRoleBadge(role: string) {
-  switch (role) {
-    case 'ADMIN':
-      return {
-        label: 'Admin',
-        emoji: '🛡️',
-        color: 'bg-red-500/20 text-red-300 border-red-500/30',
-      };
-    case 'BETA':
-      return {
-        label: 'Beta-User',
-        emoji: '🧪',
-        color: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-      };
-    case 'MODERATOR':
-      return {
-        label: 'Moderator',
-        emoji: '⚖️',
-        color: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-      };
-    default:
-      return {
-        label: 'User',
-        emoji: '👤',
-        color: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
-      };
-  }
-}
+const ROLE_CONFIG: Record<
+  string,
+  { label: string; emoji: string; color: string }
+> = {
+  ADMIN: {
+    label: 'Admin',
+    emoji: '🛡️',
+    color: 'bg-red-500/20 text-red-300 border-red-500/30',
+  },
+  BETA: {
+    label: 'Beta-User',
+    emoji: '🧪',
+    color: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  },
+  MODERATOR: {
+    label: 'Moderator',
+    emoji: '⚖️',
+    color: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  },
+  USER: {
+    label: 'User',
+    emoji: '👤',
+    color: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+  },
+};
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('token');
@@ -67,6 +66,7 @@ function getAuthHeader(): Record<string, string> {
 
 export default function ProfilPage() {
   const router = useRouter();
+  const { feature_delete_account } = useAppConfig();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -74,26 +74,22 @@ export default function ProfilPage() {
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<Warning[]>([]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'witze' | 'verwarnungen'>('witze');
 
   const loadProfile = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/profile`, {
-        headers: getAuthHeader(),
-      });
-      const warningsRes = await fetch(`${API_URL}/profile/warnings`, {
-        headers: getAuthHeader(),
-      });
-      if (warningsRes.ok) setWarnings(await warningsRes.json());
-
+      const [res, warningsRes] = await Promise.all([
+        fetch(`${API_URL}/profile`, { headers: getAuthHeader() }),
+        fetch(`${API_URL}/profile/warnings`, { headers: getAuthHeader() }),
+      ]);
       if (res.status === 401) {
         localStorage.removeItem('token');
         router.push('/login');
         return;
       }
-
-      if (!res.ok) return;
-      const data: ProfileData = await res.json();
-      setProfile(data);
+      if (res.ok) setProfile(await res.json());
+      if (warningsRes.ok) setWarnings(await warningsRes.json());
     } finally {
       setLoading(false);
     }
@@ -116,7 +112,7 @@ export default function ProfilPage() {
       body: JSON.stringify({ text: editText.trim() }),
     });
     if (!res.ok) {
-      setError('Fehler beim Speichern. Bitte erneut versuchen.');
+      setError('Fehler beim Speichern.');
       return;
     }
     setError(null);
@@ -132,7 +128,7 @@ export default function ProfilPage() {
       headers: getAuthHeader(),
     });
     if (!res.ok) {
-      setError('Fehler beim Löschen. Bitte erneut versuchen.');
+      setError('Fehler beim Löschen.');
       setTimeout(() => setError(null), 4000);
       return;
     }
@@ -141,104 +137,248 @@ export default function ProfilPage() {
   };
 
   const username = profile?.username ?? '';
-  const email = profile?.email ?? '';
+  const badge = ROLE_CONFIG[profile?.role ?? 'USER'] ?? ROLE_CONFIG.USER;
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Profil Header */}
-        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-2xl font-bold text-white">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Cover + Avatar */}
+        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl overflow-hidden">
+          {/* Cover */}
+          <div className="h-32 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600" />
+
+          {/* Avatar + Info */}
+          <div className="px-6 pb-6">
+            <div className="flex items-end justify-between -mt-10 mb-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl border-4 border-gray-900 flex items-center justify-center shadow-xl">
+                <span className="text-3xl font-black text-white">
                   {username.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div>
-                <h1 className="text-2xl font-black text-white mb-1">
-                  @{username}
-                </h1>
-                <p className="text-gray-400 text-sm mb-2">{email}</p>
-                {profile?.role &&
-                  (() => {
-                    const badge = getRoleBadge(profile.role);
-                    return (
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badge.color}`}
-                      >
-                        {badge.emoji} {badge.label}
-                      </span>
-                    );
-                  })()}
+              <div className="flex gap-2 mb-1">
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
+                >
+                  🔒 Passwort
+                </button>
+                {feature_delete_account && (
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 rounded-xl transition-all text-xs font-medium"
+                  >
+                    🗑️ Account löschen
+                  </button>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => router.push('/')}
-              className="px-6 py-2.5 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-sm font-medium"
-            >
-              ← Zurück zur Home
-            </button>
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="px-6 py-2.5 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-sm font-medium"
-            >
-              🔒 Passwort ändern
-            </button>
+
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl font-black text-white">@{username}</h1>
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${badge.color}`}
+              >
+                {badge.emoji} {badge.label}
+              </span>
+              {warnings.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                  ⚠️ {warnings.length} Verwarnungen
+                </span>
+              )}
+            </div>
+            <p className="text-gray-500 text-sm">{profile?.email}</p>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="grid grid-cols-3 border-t border-gray-800/50">
+            {[
+              {
+                label: 'Witze',
+                value: profile?.witze.length ?? 0,
+                emoji: '📝',
+              },
+              {
+                label: 'Likes erhalten',
+                value: profile?.likesReceived ?? 0,
+                emoji: '❤️',
+              },
+              {
+                label: 'Rang',
+                value: profile?.rang ?? '🥉 Neuling',
+                emoji: null,
+              },
+            ].map((s, i) => (
+              <div
+                key={i}
+                className={`py-4 text-center ${i < 2 ? 'border-r border-gray-800/50' : ''}`}
+              >
+                <p className="text-xl font-black text-white">{s.value}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Statistik Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-6 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-2xl">📝</span>
-            </div>
-            <p className="text-3xl font-black text-white">
-              {profile?.witze.length ?? 0}
-            </p>
-            <p className="text-gray-400 text-sm mt-1 uppercase tracking-wider font-medium">
-              Witze gepostet
-            </p>
-          </div>
-
-          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-6 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-2xl">👍</span>
-            </div>
-            <p className="text-3xl font-black text-white">
-              {profile?.likesReceived ?? 0}
-            </p>
-            <p className="text-gray-400 text-sm mt-1 uppercase tracking-wider font-medium">
-              Likes erhalten
-            </p>
-          </div>
-
-          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-6 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-2xl">⭐</span>
-            </div>
-            <p className="text-xl font-black text-white">
-              {profile?.rang ?? '🥉 Neuling'}
-            </p>
-            <p className="text-gray-400 text-sm mt-1 uppercase tracking-wider font-medium">
-              Rang
-            </p>
-          </div>
-        </div>
-
-        {error && <p className="text-red-400 text-sm mb-4 px-1">{error}</p>}
-
-        {warnings.length > 0 && (
-          <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/30 rounded-3xl p-6">
-            <h2 className="text-xl font-black text-red-300 mb-4">
+        {/* Tabs */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('witze')}
+            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+              activeTab === 'witze'
+                ? 'bg-indigo-600/80 text-white border-indigo-500/50'
+                : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50'
+            }`}
+          >
+            📝 Meine Witze ({profile?.witze.length ?? 0})
+          </button>
+          {warnings.length > 0 && (
+            <button
+              onClick={() => setActiveTab('verwarnungen')}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                activeTab === 'verwarnungen'
+                  ? 'bg-yellow-600/80 text-white border-yellow-500/50'
+                  : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50'
+              }`}
+            >
               ⚠️ Verwarnungen ({warnings.length})
+            </button>
+          )}
+        </div>
+
+        {error && <p className="text-red-400 text-sm px-1">{error}</p>}
+
+        {/* Tab: Witze */}
+        {activeTab === 'witze' && (
+          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-black text-white">Meine Witze</h2>
+              <button
+                onClick={() => router.push('/post')}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-sm transition-all"
+              >
+                ➕ Neuer Witz
+              </button>
+            </div>
+
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
+              </div>
+            )}
+
+            {!loading && (profile?.witze.length ?? 0) === 0 && (
+              <div className="text-center py-12">
+                <span className="text-5xl block mb-4">📝</span>
+                <p className="text-gray-400 mb-2">Noch keine Witze</p>
+                <button
+                  onClick={() => router.push('/post')}
+                  className="mt-4 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition-all"
+                >
+                  Ersten Witz posten
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {profile?.witze.map((w) => (
+                <div
+                  key={w.id}
+                  className="group p-4 bg-gray-800/50 hover:bg-gray-800/80 border border-gray-700/50 rounded-2xl transition-all"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      {editingId === w.id ? (
+                        <div className="space-y-3">
+                          <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            className="w-full p-3 bg-gray-900 border border-gray-600 rounded-xl text-white resize-vertical min-h-[100px] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            autoFocus
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => {
+                                setEditingId(null);
+                                setEditText('');
+                              }}
+                              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm transition-all"
+                            >
+                              Abbrechen
+                            </button>
+                            <button
+                              onClick={saveEdit}
+                              disabled={!editText.trim()}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold rounded-xl text-sm transition-all"
+                            >
+                              Speichern
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-gray-100 leading-relaxed mb-2">
+                            "{w.text}"
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            {w.isEdited && w.updatedAt && (
+                              <span className="text-yellow-400/70">
+                                ✏️ Bearbeitet
+                              </span>
+                            )}
+                            <span>
+                              {new Date(w.createdAt).toLocaleDateString(
+                                'de-DE',
+                                {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                }
+                              )}
+                            </span>
+                            <span className="ml-auto text-indigo-400 font-bold">
+                              ❤️ {w.likes ?? 0}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {!editingId && (
+                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => {
+                            setEditingId(w.id);
+                            setEditText(w.text);
+                          }}
+                          className="p-2 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 text-blue-300 rounded-lg text-sm transition-all"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => deleteWitz(w.id)}
+                          className="p-2 bg-red-500/20 hover:bg-red-500/40 border border-red-500/30 text-red-300 rounded-lg text-sm transition-all"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Verwarnungen */}
+        {activeTab === 'verwarnungen' && (
+          <div className="bg-yellow-500/5 backdrop-blur-xl border border-yellow-500/20 rounded-3xl p-6">
+            <h2 className="text-lg font-black text-yellow-300 mb-4">
+              ⚠️ Verwarnungen
             </h2>
             <div className="space-y-3">
               {warnings.map((w) => (
                 <div
                   key={w.id}
-                  className="p-4 bg-red-500/10 rounded-2xl border border-red-500/20"
+                  className="p-4 bg-yellow-500/10 rounded-2xl border border-yellow-500/20"
                 >
                   <p className="text-white text-sm font-medium mb-1">
                     {w.reason}
@@ -258,147 +398,13 @@ export default function ProfilPage() {
             </div>
           </div>
         )}
-
-        {/* Meine Witze */}
-        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-white">📝 Meine Witze</h2>
-            <button
-              onClick={() => router.push('/post')}
-              className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all text-sm"
-            >
-              ➕ Neuer Witz
-            </button>
-          </div>
-
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
-            </div>
-          )}
-
-          {!loading && (profile?.witze.length ?? 0) === 0 && (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-4xl text-gray-500">📝</span>
-              </div>
-              <p className="text-gray-400 text-lg mb-2">Noch keine Witze</p>
-              <p className="text-gray-500 text-sm mb-6">
-                Deine Witze erscheinen hier.
-              </p>
-              <button
-                onClick={() => router.push('/post')}
-                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all"
-              >
-                Ersten Witz posten
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {profile?.witze.map((w) => (
-              <div
-                key={w.id}
-                className="group p-5 bg-gray-800/50 hover:bg-gray-750/50 border border-gray-700/50 rounded-2xl transition-all"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    {editingId === w.id ? (
-                      <div className="space-y-3 p-3 bg-gray-900/50 border border-gray-600 rounded-xl">
-                        <textarea
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          className="w-full p-3 bg-gray-800 border border-gray-600 rounded-xl text-white text-lg resize-vertical min-h-[100px] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                          placeholder="Witz bearbeiten..."
-                          autoFocus
-                        />
-                        <div className="flex gap-3 justify-end pt-2 border-t border-gray-700">
-                          <button
-                            onClick={() => {
-                              setEditingId(null);
-                              setEditText('');
-                            }}
-                            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl transition-all font-medium"
-                          >
-                            Abbrechen
-                          </button>
-                          <button
-                            onClick={saveEdit}
-                            disabled={!editText.trim()}
-                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all"
-                          >
-                            Speichern
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-gray-100 text-lg leading-relaxed mb-2">
-                          "{w.text}"
-                        </p>
-                        {w.isEdited && w.updatedAt && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-medium rounded-full border border-yellow-500/30">
-                            ✏️ Bearbeitet{' '}
-                            {new Date(w.updatedAt).toLocaleString('de-DE', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </span>
-                        )}
-                      </>
-                    )}
-
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                      <span className="font-mono text-xs bg-gray-800 px-2 py-1 rounded">
-                        #{w.id}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        {new Date(w.createdAt).toLocaleDateString('de-DE', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                      <div className="ml-auto flex items-center gap-1 text-indigo-400 font-bold">
-                        <span>{w.likes ?? 0}</span> 👍
-                      </div>
-                    </div>
-                  </div>
-
-                  {!editingId && (
-                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all ml-2">
-                      <button
-                        onClick={() => {
-                          setEditingId(w.id);
-                          setEditText(w.text);
-                        }}
-                        className="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/40 text-blue-300 hover:text-blue-100 font-bold text-sm rounded-xl transition-all"
-                        title="Bearbeiten"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => deleteWitz(w.id)}
-                        className="px-3 py-2 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 text-red-300 hover:text-red-100 font-bold text-sm rounded-xl transition-all"
-                        title="Löschen"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
+
       {showPasswordModal && (
         <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
+      )}
+      {showDeleteModal && (
+        <DeleteAccountModal onClose={() => setShowDeleteModal(false)} />
       )}
     </AppLayout>
   );

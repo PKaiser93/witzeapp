@@ -24,9 +24,12 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { emoji: '⚙️', name: 'Admin Panel', path: '/admin' },
+  { emoji: '⚙️', name: 'Dashboard', path: '/admin' },
+  { emoji: '👤', name: 'User-Verwaltung', path: '/admin/users' },
+  { emoji: '🚩', name: 'Meldungen', path: '/admin/reports' },
+  { emoji: '🔧', name: 'App-Einstellungen', path: '/admin/config' },
   { emoji: '📋', name: 'Audit-Log', path: '/admin/logs' },
-  { emoji: '🏷️', name: 'Kategorie erstellen', path: '/kategorien/neu' },
+  { emoji: '🏷️', name: 'Kategorien', path: '/admin/kategorien' },
 ];
 
 interface NavButtonProps {

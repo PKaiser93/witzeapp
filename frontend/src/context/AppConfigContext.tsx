@@ -17,6 +17,7 @@ interface AppConfig {
   feature_report: boolean;
   announcement: string;
   announcement_active: boolean;
+  feature_delete_account: boolean;
 }
 
 const defaultConfig: AppConfig = {
@@ -27,6 +28,7 @@ const defaultConfig: AppConfig = {
   feature_report: false,
   announcement: '',
   announcement_active: false,
+  feature_delete_account: false,
 };
 
 const AppConfigContext = createContext<AppConfig>(defaultConfig);
@@ -50,6 +52,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
           feature_report: data.feature_report !== 'false',
           announcement: data.announcement ?? '',
           announcement_active: data.announcement_active === 'true',
+          feature_delete_account: data.feature_delete_account !== 'false',
         });
       })
       .catch(() => {});
@@ -63,6 +66,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
         feature_register: true,
         feature_report: true,
         maintenance: false,
+        feature_delete_account: true,
       }
     : config;
 

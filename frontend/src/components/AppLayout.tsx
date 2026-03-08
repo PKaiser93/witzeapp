@@ -35,12 +35,17 @@ function MaintenanceGuard({ children }: { children: ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+  const { announcement_active, announcement } = useAppConfig();
+  const hasBanner = announcement_active && !!announcement;
+
   return (
     <div className="min-h-screen bg-gray-950">
       <Navbar />
       <AnnouncementBanner />
       <Sidebar />
-      <main className="md:ml-64 pt-16 min-h-screen">
+      <main
+        className={`md:ml-64 min-h-screen ${hasBanner ? 'pt-28' : 'pt-16'}`}
+      >
         <div className="max-w-3xl mx-auto p-6">
           <MaintenanceGuard>{children}</MaintenanceGuard>
         </div>
