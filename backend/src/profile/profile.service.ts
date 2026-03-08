@@ -30,6 +30,16 @@ export interface ProfileResponse {
   longestStreak: number;
 }
 
+function calculateRang(likesReceived: number): string {
+  if (likesReceived >= 500) return '👑 König der Witze';
+  if (likesReceived >= 250) return '🌟 Legende';
+  if (likesReceived >= 100) return '🏆 Meister';
+  if (likesReceived >= 50) return '💎 Experte';
+  if (likesReceived >= 25) return '🥇 Fortgeschrittener';
+  if (likesReceived >= 10) return '🥈 Aufsteiger';
+  return '🥉 Neuling';
+}
+
 @Injectable()
 export class ProfileService {
   constructor(
@@ -83,9 +93,7 @@ export class ProfileService {
       isEdited: w.isEdited, // ← aus DB lesen
     }));
 
-    let rang = '🥉 Neuling';
-    if (likesReceived >= 50) rang = '🥈 Fortgeschritten';
-    if (likesReceived >= 100) rang = '🥇 Meister';
+    const rang = calculateRang(likesReceived);
 
     return {
       id: userId,
@@ -255,9 +263,7 @@ export class ProfileService {
       0,
     );
 
-    let rang = '🥉 Neuling';
-    if (likesReceived >= 50) rang = '🥈 Fortgeschritten';
-    if (likesReceived >= 100) rang = '🥇 Meister';
+    const rang = calculateRang(likesReceived);
 
     return {
       id: user.id,

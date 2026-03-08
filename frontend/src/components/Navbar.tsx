@@ -267,6 +267,12 @@ export default function Navbar() {
           /* Gast-Buttons */
           <div className="flex items-center gap-2">
             <button
+              onClick={() => router.push('/hilfe')}
+              className="px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-xl transition-all text-sm font-medium"
+            >
+              ❓ Hilfe
+            </button>
+            <button
               onClick={() => router.push('/login')}
               className="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800/50 border border-gray-700/50 rounded-xl transition-all text-sm font-medium"
             >
