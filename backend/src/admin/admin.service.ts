@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -10,6 +10,13 @@ export class AdminService {
   ) {}
 
   async updateUserRole(userId: number, role: string, adminId: number) {
+    // Admin kann sich nicht selbst degradieren
+    if (userId === adminId && role !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Du kannst deine eigene Admin-Rolle nicht entfernen',
+      );
+    }
+
     const target = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { username: true },

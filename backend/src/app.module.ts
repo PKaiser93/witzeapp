@@ -12,12 +12,17 @@ import { AdminModule } from './admin/admin.module';
 import { AppConfigModule } from './config/config.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FollowModule } from './follow/follow.module';
+import { envValidationSchema } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validationSchema: envValidationSchema,
+      validationOptions: {
+        abortEarly: true,
+      },
     }),
     ThrottlerModule.forRoot([
       {
