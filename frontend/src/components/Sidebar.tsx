@@ -67,10 +67,12 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [kategorien, setKategorien] = useState<Kategorie[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     setIsAdmin(localStorage.getItem('role') === 'ADMIN');
+    setIsLoggedIn(!!localStorage.getItem('token'));
     fetch(`${API_URL}/witze/kategorien`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setKategorien(data))
@@ -99,16 +101,20 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-gray-900/80 backdrop-blur-xl border-r border-gray-800/50 fixed left-0 top-16 bottom-0 overflow-y-auto hidden md:block">
       <div className="p-6 space-y-1">
-        {/* Navigation */}
-        <SectionLabel label="Navigation" />
-        {NAV_ITEMS.map((item) => (
-          <NavButton
-            key={item.path}
-            item={item}
-            active={pathname === item.path}
-            onClick={() => router.push(item.path)}
-          />
-        ))}
+        {/* Navigation – nur für eingeloggte User */}
+        {isLoggedIn && (
+          <>
+            <SectionLabel label="Navigation" />
+            {NAV_ITEMS.map((item) => (
+              <NavButton
+                key={item.path}
+                item={item}
+                active={pathname === item.path}
+                onClick={() => router.push(item.path)}
+              />
+            ))}
+          </>
+        )}
 
         {/* Admin */}
         {isAdmin && (
@@ -128,9 +134,9 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* Kategorien */}
-        <div className="pt-4">
-          <hr className="border-gray-800/50 mb-4" />
+        {/* Kategorien – für alle sichtbar */}
+        <div className={isLoggedIn ? 'pt-4' : ''}>
+          {isLoggedIn && <hr className="border-gray-800/50 mb-4" />}
           <SectionLabel label="Kategorien" />
           <div className="space-y-1">
             {kategorienList.map((kat) => (
