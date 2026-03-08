@@ -13,9 +13,12 @@ import { AppConfigModule } from './config/config.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FollowModule } from './follow/follow.module';
 import { envValidationSchema } from './config/env.validation';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -36,6 +39,7 @@ import { envValidationSchema } from './config/env.validation';
         limit: 100,
       },
     ]),
+    TasksModule,
     PrismaModule,
     AuthModule,
     KategorieModule,

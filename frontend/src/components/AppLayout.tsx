@@ -56,6 +56,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <span>© 2026 WitzeApp</span>
           <div className="flex gap-4">
             <button
+              onClick={() => router.push('/changelog')}
+              className="hover:text-gray-400 transition-colors"
+            >
+              Changelog
+            </button>
+            <button
               onClick={() => router.push('/impressum')}
               className="hover:text-gray-400 transition-colors"
             >
