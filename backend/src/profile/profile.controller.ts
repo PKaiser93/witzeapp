@@ -7,11 +7,13 @@ import {
   Param,
   UseGuards,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
 import { ProfileService, ProfileResponse } from './profile.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { Response } from 'express';
 
 interface UpdateWitzDto {
   text: string;
@@ -101,5 +103,18 @@ export class ProfileController {
   @UseGuards(JwtAuthGuard)
   async getBadges(@CurrentUser() user: JwtPayload) {
     return this.profileService.getBadges(user.sub);
+  }
+
+  @Get('export')
+  @UseGuards(JwtAuthGuard)
+  async exportData(@CurrentUser() user: JwtPayload, @Res() res: Response) {
+    const data = await this.profileService.exportData(user.sub);
+    const json = JSON.stringify(data, null, 2);
+    (res as any).setHeader('Content-Type', 'application/json');
+    (res as any).setHeader(
+      'Content-Disposition',
+      `attachment; filename="witzeapp-export-${user.sub}.json"`,
+    );
+    (res as any).send(json);
   }
 }

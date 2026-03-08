@@ -188,6 +188,22 @@ export default function ProfilPage() {
     loadProfile();
   };
 
+  const exportData = async () => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}/profile/export`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `witzeapp-export.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const username = profile?.username ?? '';
   const badge = ROLE_CONFIG[profile?.role ?? 'USER'] ?? ROLE_CONFIG.USER;
 
@@ -227,6 +243,12 @@ export default function ProfilPage() {
                   className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
                 >
                   ✏️ Username
+                </button>
+                <button
+                  onClick={exportData}
+                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
+                >
+                  📦 Daten exportieren
                 </button>
               </div>
             </div>

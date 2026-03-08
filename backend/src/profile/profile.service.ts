@@ -286,4 +286,69 @@ export class ProfileService {
       })),
     };
   }
+
+  async exportData(userId: number) {
+    const [
+      user,
+      witze,
+      kommentare,
+      likes,
+      badges,
+      warnings,
+      followers,
+      following,
+    ] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          bio: true,
+          role: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.witz.findMany({
+        where: { authorId: userId },
+        select: { id: true, text: true, likes: true, createdAt: true },
+      }),
+      this.prisma.comment.findMany({
+        where: { authorId: userId },
+        select: { id: true, text: true, createdAt: true, witzId: true },
+      }),
+      this.prisma.like.findMany({
+        where: { userId },
+        select: { id: true, witzId: true },
+      }),
+      this.prisma.badge.findMany({
+        where: { userId },
+        select: { key: true, awardedAt: true },
+      }),
+      this.prisma.warning.findMany({
+        where: { userId },
+        select: { reason: true, createdAt: true },
+      }),
+      this.prisma.follow.count({ where: { followingId: userId } }),
+      this.prisma.follow.count({ where: { followerId: userId } }),
+    ]);
+
+    return {
+      exportDatum: new Date().toISOString(),
+      hinweis: 'Datenexport gemäß Art. 20 DSGVO',
+      profil: user,
+      statistiken: {
+        anzahlWitze: witze.length,
+        anzahlKommentare: kommentare.length,
+        anzahlLikes: likes.length,
+        followers,
+        following,
+      },
+      witze,
+      kommentare,
+      likes,
+      badges,
+      verwarnungen: warnings,
+    };
+  }
 }
