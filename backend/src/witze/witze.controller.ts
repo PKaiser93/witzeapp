@@ -3,14 +3,13 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Query,
   Param,
   Body,
   ParseIntPipe,
   UseGuards,
-  Request,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { WitzeService } from './witze.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
@@ -46,11 +45,13 @@ export class WitzeController {
     return this.witzeService.findAll(undefined, kategorie, search, sort);
   }
 
+  @SkipThrottle()
   @Get('random')
   findRandom() {
     return this.witzeService.findRandom();
   }
 
+  @SkipThrottle()
   @Get('kategorien')
   getKategorien() {
     return this.witzeService.findAllKategorien();

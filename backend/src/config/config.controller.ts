@@ -1,7 +1,8 @@
-// src/config/config.controller.ts
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle()
 @Controller('config')
 export class ConfigController {
   constructor(private readonly prisma: PrismaService) {}
