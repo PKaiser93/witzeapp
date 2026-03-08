@@ -70,4 +70,13 @@ export class ProfileController {
   async deleteAccount(@CurrentUser() user: JwtPayload) {
     return this.profileService.deleteAccount(user.sub);
   }
+
+  @Patch('username')
+  @UseGuards(JwtAuthGuard)
+  async changeUsername(
+    @Body('username') username: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.profileService.changeUsername(user.sub, username);
+  }
 }

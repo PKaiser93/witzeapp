@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -150,5 +151,37 @@ export class ProfileService {
 
   async deleteAccount(userId: number) {
     return this.prisma.user.delete({ where: { id: userId } });
+  }
+
+  async changeUsername(userId: number, newUsername: string) {
+    const trimmed = newUsername.trim();
+
+    if (!trimmed)
+      throw new BadRequestException('Username darf nicht leer sein');
+    if (trimmed.length < 3)
+      throw new BadRequestException(
+        'Username muss mindestens 3 Zeichen lang sein',
+      );
+    if (trimmed.length > 20)
+      throw new BadRequestException(
+        'Username darf maximal 20 Zeichen lang sein',
+      );
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed))
+      throw new BadRequestException(
+        'Username darf nur Buchstaben, Zahlen und _ enthalten',
+      );
+
+    // Prüfen ob Username verfügbar
+    const existing = await this.prisma.user.findUnique({
+      where: { username: trimmed },
+      select: { id: true },
+    });
+    if (existing) throw new BadRequestException('Username bereits vergeben');
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { username: trimmed },
+      select: { id: true, username: true },
+    });
   }
 }

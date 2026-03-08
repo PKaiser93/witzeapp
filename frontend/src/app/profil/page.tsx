@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 import DeleteAccountModal from '@/components/DeleteAccountModal';
+import ChangeUsernameModal from '@/components/ChangeUsernameModal';
 import { useAppConfig } from '@/context/AppConfigContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -76,6 +77,7 @@ export default function ProfilPage() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'witze' | 'verwarnungen'>('witze');
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -170,6 +172,12 @@ export default function ProfilPage() {
                     🗑️ Account löschen
                   </button>
                 )}
+                <button
+                  onClick={() => setShowUsernameModal(true)}
+                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
+                >
+                  ✏️ Username
+                </button>
               </div>
             </div>
 
@@ -400,6 +408,17 @@ export default function ProfilPage() {
         )}
       </div>
 
+      {showUsernameModal && (
+        <ChangeUsernameModal
+          currentUsername={username}
+          onClose={() => setShowUsernameModal(false)}
+          onSuccess={(newUsername) =>
+            setProfile((prev) =>
+              prev ? { ...prev, username: newUsername } : prev
+            )
+          }
+        />
+      )}
       {showPasswordModal && (
         <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
       )}
