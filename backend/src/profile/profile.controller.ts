@@ -80,6 +80,12 @@ export class ProfileController {
     return this.profileService.changeUsername(user.sub, username);
   }
 
+  @Get('user/:username/badges')
+  async getPublicBadges(@Param('username') username: string) {
+    const user = await this.profileService.getUserByUsername(username);
+    return this.profileService.getBadges(user.id);
+  }
+
   @Get('user/:username')
   async getPublicProfile(@Param('username') username: string) {
     return this.profileService.getPublicProfile(username);
@@ -89,5 +95,11 @@ export class ProfileController {
   @UseGuards(JwtAuthGuard)
   async updateBio(@Body('bio') bio: string, @CurrentUser() user: JwtPayload) {
     return this.profileService.updateBio(user.sub, bio ?? '');
+  }
+
+  @Get('badges')
+  @UseGuards(JwtAuthGuard)
+  async getBadges(@CurrentUser() user: JwtPayload) {
+    return this.profileService.getBadges(user.sub);
   }
 }

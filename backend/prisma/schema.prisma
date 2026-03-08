@@ -32,7 +32,20 @@ model User {
   currentStreak  Int      @default(0)
   longestStreak  Int      @default(0)
   lastPostDate   DateTime?
+
+  badges Badge[]
 }
+
+model Badge {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  key         String
+  awardedAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+}
+
 
 model Kategorie {
   id        Int      @id @default(autoincrement())

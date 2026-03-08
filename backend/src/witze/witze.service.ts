@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { BadgesService } from '../badges/badges.service';
 
 export interface WitzResponse {
   id: number;
@@ -29,6 +30,7 @@ export class WitzeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly badgeService: BadgesService,
   ) {}
 
   async findAll(
@@ -100,6 +102,7 @@ export class WitzeService {
 
     // Streak aktualisieren
     await this.updateStreak(authorId);
+    await this.badgeService.checkAndAwardBadges(authorId);
 
     return witz;
   }

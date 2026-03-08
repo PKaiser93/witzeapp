@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { BadgesService } from '../badges/badges.service';
 
 @Injectable()
 export class FollowService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly badgeService: BadgesService,
   ) {}
 
   async toggleFollow(followerId: number, followingId: number) {
@@ -23,6 +25,7 @@ export class FollowService {
     }
 
     await this.prisma.follow.create({ data: { followerId, followingId } });
+    await this.badgeService.checkAndAwardBadges(followingId);
 
     // Notification
     const follower = await this.prisma.user.findUnique({

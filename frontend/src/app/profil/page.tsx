@@ -6,8 +6,18 @@ import ChangePasswordModal from '@/components/ChangePasswordModal';
 import DeleteAccountModal from '@/components/DeleteAccountModal';
 import ChangeUsernameModal from '@/components/ChangeUsernameModal';
 import { useAppConfig } from '@/context/AppConfigContext';
+import BadgeList from '@/components/BadgeList';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+interface Badge {
+  id: number;
+  key: string;
+  emoji: string;
+  label: string;
+  description: string;
+  awardedAt: string;
+}
 
 interface WitzItem {
   id: number;
@@ -83,6 +93,7 @@ export default function ProfilPage() {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
   const [bioText, setBioText] = useState('');
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [followCounts, setFollowCounts] = useState({
     followers: 0,
     following: 0,
@@ -127,6 +138,10 @@ export default function ProfilPage() {
           .catch(() => {});
       }
       if (warningsRes.ok) setWarnings(await warningsRes.json());
+      fetch(`${API_URL}/profile/badges`, { headers: getAuthHeader() })
+        .then((r) => r.json())
+        .then(setBadges)
+        .catch(() => {});
     } finally {
       setLoading(false);
     }
@@ -361,6 +376,8 @@ export default function ProfilPage() {
           )}
         </div>
         {error && <p className="text-red-400 text-sm px-1">{error}</p>}
+        {/* Badges */}
+        <BadgeList badges={badges} />
         {/* Tab: Witze */}
         {activeTab === 'witze' && (
           <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">

@@ -2,8 +2,18 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BadgeList from '@/components/BadgeList';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+interface Badge {
+  id: number;
+  key: string;
+  emoji: string;
+  label: string;
+  description: string;
+  awardedAt: string;
+}
 
 interface PublicWitz {
   id: number;
@@ -62,6 +72,7 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [followStatus, setFollowStatus] = useState(false);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [followCounts, setFollowCounts] = useState({
     followers: 0,
     following: 0,
@@ -114,6 +125,11 @@ export default function PublicProfilePage() {
       .then((data) => {
         if (!data) return;
         setProfile(data);
+
+        fetch(`${API_URL}/profile/user/${data.username}/badges`)
+          .then((r) => r.json())
+          .then(setBadges)
+          .catch(() => {});
 
         if (
           isLoggedIn &&
@@ -283,6 +299,9 @@ export default function PublicProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Badges */}
+        <BadgeList badges={badges} />
 
         {/* Witze */}
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">

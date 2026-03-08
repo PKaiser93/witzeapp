@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+import { BadgesService } from '../badges/badges.service';
 
 export interface ProfileWitz {
   id: number;
@@ -31,7 +32,23 @@ export interface ProfileResponse {
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly badgeService: BadgesService,
+  ) {}
+
+  async getBadges(userId: number) {
+    return this.badgeService.getUserBadges(userId);
+  }
+
+  async getUserByUsername(username: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundException('User nicht gefunden');
+    return user;
+  }
 
   async getProfile(userId: number): Promise<ProfileResponse> {
     const [witzeRaw, likesReceived, user] = await Promise.all([
