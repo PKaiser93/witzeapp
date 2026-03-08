@@ -80,6 +80,11 @@ export class ProfileController {
     return this.profileService.changeUsername(user.sub, username);
   }
 
+  @Get('user/:username')
+  async getPublicProfile(@Param('username') username: string) {
+    return this.profileService.getPublicProfile(username);
+  }
+
   @Patch('bio')
   @UseGuards(JwtAuthGuard)
   async updateBio(@Body('bio') bio: string, @CurrentUser() user: JwtPayload) {

@@ -373,9 +373,16 @@ export default function HomePage() {
                   </span>
                 </div>
                 <div>
-                  <p className="text-white text-sm font-semibold">
+                  <p
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/profil/${w.author?.username}`);
+                    }}
+                    className="text-white text-sm font-semibold cursor-pointer hover:text-indigo-400 transition-colors"
+                  >
                     @{w.author?.username ?? 'Gast'}
                   </p>
+
                   <p className="text-gray-500 text-xs">
                     {new Date(w.createdAt).toLocaleDateString('de-DE', {
                       day: 'numeric',

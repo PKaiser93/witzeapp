@@ -23,6 +23,7 @@ export interface ProfileResponse {
   username: string;
   email: string;
   role: string;
+  bio: string;
 }
 
 @Injectable()
@@ -39,7 +40,7 @@ export class ProfileService {
           likes: true,
           createdAt: true,
           updatedAt: true,
-          isEdited: true, // ← ergänzen
+          isEdited: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -194,5 +195,54 @@ export class ProfileService {
       data: { bio: bio.trim() },
       select: { id: true, bio: true },
     });
+  }
+
+  async getPublicProfile(username: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+      select: {
+        id: true,
+        username: true,
+        bio: true,
+        role: true,
+        createdAt: true,
+        witze: {
+          include: {
+            kategorie: { select: { name: true, emoji: true } },
+            _count: { select: { likeLikes: true, comments: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!user) throw new NotFoundException('User nicht gefunden');
+
+    const likesReceived = user.witze.reduce(
+      (sum, w) => sum + w._count.likeLikes,
+      0,
+    );
+
+    let rang = '🥉 Neuling';
+    if (likesReceived >= 50) rang = '🥈 Fortgeschritten';
+    if (likesReceived >= 100) rang = '🥇 Meister';
+
+    return {
+      username: user.username,
+      bio: user.bio ?? '',
+      role: user.role,
+      rang,
+      memberSince: user.createdAt,
+      witzeCount: user.witze.length,
+      likesReceived,
+      witze: user.witze.map((w) => ({
+        id: w.id,
+        text: w.text,
+        likes: w._count.likeLikes,
+        createdAt: w.createdAt,
+        isEdited: w.isEdited,
+        kategorie: w.kategorie,
+      })),
+    };
   }
 }
