@@ -45,13 +45,13 @@ export class WitzeController {
     return this.witzeService.findAll(undefined, kategorie, search, sort);
   }
 
-  @SkipThrottle()
+  @SkipThrottle({ short: true, medium: true })
   @Get('random')
   findRandom() {
     return this.witzeService.findRandom();
   }
 
-  @SkipThrottle()
+  @SkipThrottle({ short: true, medium: true })
   @Get('kategorien')
   getKategorien() {
     return this.witzeService.findAllKategorien();
