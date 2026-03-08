@@ -24,6 +24,9 @@ export interface ProfileResponse {
   email: string;
   role: string;
   bio: string;
+  id: number;
+  currentStreak: number;
+  longestStreak: number;
 }
 
 @Injectable()
@@ -47,7 +50,14 @@ export class ProfileService {
       this.prisma.like.count({ where: { witz: { authorId: userId } } }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { username: true, email: true, role: true, bio: true },
+        select: {
+          username: true,
+          email: true,
+          role: true,
+          bio: true,
+          currentStreak: true,
+          longestStreak: true,
+        },
       }),
     ]);
 
@@ -61,6 +71,7 @@ export class ProfileService {
     if (likesReceived >= 100) rang = '🥇 Meister';
 
     return {
+      id: userId,
       witze,
       likesReceived,
       rang,
@@ -68,6 +79,8 @@ export class ProfileService {
       email: user?.email ?? '',
       role: user?.role ?? 'USER',
       bio: user?.bio ?? '',
+      currentStreak: user?.currentStreak ?? 0,
+      longestStreak: user?.longestStreak ?? 0,
     };
   }
 
@@ -206,6 +219,8 @@ export class ProfileService {
         bio: true,
         role: true,
         createdAt: true,
+        currentStreak: true,
+        longestStreak: true,
         witze: {
           include: {
             kategorie: { select: { name: true, emoji: true } },
@@ -228,12 +243,15 @@ export class ProfileService {
     if (likesReceived >= 100) rang = '🥇 Meister';
 
     return {
+      id: user.id,
       username: user.username,
       bio: user.bio ?? '',
       role: user.role,
       rang,
       memberSince: user.createdAt,
       witzeCount: user.witze.length,
+      currentStreak: user.currentStreak,
+      longestStreak: user.longestStreak,
       likesReceived,
       witze: user.witze.map((w) => ({
         id: w.id,

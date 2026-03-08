@@ -26,6 +26,8 @@ interface ProfileData {
   email: string;
   role: string;
   bio: string;
+  currentStreak: number;
+  longestStreak: number;
 }
 
 interface Warning {
@@ -81,6 +83,10 @@ export default function ProfilPage() {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
   const [bioText, setBioText] = useState('');
+  const [followCounts, setFollowCounts] = useState({
+    followers: 0,
+    following: 0,
+  });
 
   const saveBio = async () => {
     const token = localStorage.getItem('token');
@@ -109,7 +115,17 @@ export default function ProfilPage() {
         router.push('/login');
         return;
       }
-      if (res.ok) setProfile(await res.json());
+      if (res.ok) {
+        const profileData = await res.json();
+        setProfile(profileData);
+        const token = localStorage.getItem('token');
+        fetch(`${API_URL}/follow/${profileData.id}/counts`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => r.json())
+          .then(setFollowCounts)
+          .catch(() => {});
+      }
       if (warningsRes.ok) setWarnings(await warningsRes.json());
     } finally {
       setLoading(false);
@@ -272,35 +288,53 @@ export default function ProfilPage() {
           </div>
 
           {/* Stats Bar */}
-          <div className="grid grid-cols-3 border-t border-gray-800/50">
+          <div className="grid grid-cols-4 border-t border-gray-800/50">
             {[
-              {
-                label: 'Witze',
-                value: profile?.witze.length ?? 0,
-                emoji: '📝',
-              },
-              {
-                label: 'Likes erhalten',
-                value: profile?.likesReceived ?? 0,
-                emoji: '❤️',
-              },
-              {
-                label: 'Rang',
-                value: profile?.rang ?? '🥉 Neuling',
-                emoji: null,
-              },
+              { label: 'Witze', value: profile?.witze.length ?? 0 },
+              { label: 'Likes', value: profile?.likesReceived ?? 0 },
+              { label: 'Follower', value: followCounts.followers },
+              { label: 'Rang', value: profile?.rang ?? '🥉 Neuling' },
             ].map((s, i) => (
               <div
                 key={i}
-                className={`py-4 text-center ${i < 2 ? 'border-r border-gray-800/50' : ''}`}
+                className={`py-4 text-center ${i < 3 ? 'border-r border-gray-800/50' : ''}`}
               >
                 <p className="text-xl font-black text-white">{s.value}</p>
                 <p className="text-gray-500 text-xs mt-0.5">{s.label}</p>
               </div>
-            ))}
+            ))}{' '}
           </div>
-        </div>
 
+          {/* Streak Banner */}
+          {(profile?.currentStreak ?? 0) > 0 && (
+            <div className="flex items-center justify-between px-6 py-3 bg-orange-500/10 border-t border-orange-500/20">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🔥</span>
+                <div>
+                  <p className="text-orange-300 text-sm font-bold">
+                    {profile?.currentStreak}{' '}
+                    {profile?.currentStreak === 1 ? 'Tag' : 'Tage'} in Folge
+                  </p>
+                  <p className="text-orange-400/60 text-xs">
+                    Längster Streak: {profile?.longestStreak}{' '}
+                    {profile?.longestStreak === 1 ? 'Tag' : 'Tage'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                {Array.from({
+                  length: Math.min(profile?.currentStreak ?? 0, 7),
+                }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-3 h-3 bg-orange-500 rounded-full opacity-80"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>{' '}
+        {/* ← Ende der Profil-Card hier */}
         {/* Tabs */}
         <div className="flex gap-2">
           <button
@@ -326,9 +360,7 @@ export default function ProfilPage() {
             </button>
           )}
         </div>
-
         {error && <p className="text-red-400 text-sm px-1">{error}</p>}
-
         {/* Tab: Witze */}
         {activeTab === 'witze' && (
           <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
@@ -449,7 +481,6 @@ export default function ProfilPage() {
             </div>
           </div>
         )}
-
         {/* Tab: Verwarnungen */}
         {activeTab === 'verwarnungen' && (
           <div className="bg-yellow-500/5 backdrop-blur-xl border border-yellow-500/20 rounded-3xl p-6">

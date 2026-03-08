@@ -23,6 +23,9 @@ interface PublicProfile {
   witzeCount: number;
   likesReceived: number;
   witze: PublicWitz[];
+  id: number;
+  currentStreak: number;
+  longestStreak: number;
 }
 
 const ROLE_CONFIG: Record<
@@ -58,9 +61,42 @@ export default function PublicProfilePage() {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [followStatus, setFollowStatus] = useState(false);
+  const [followCounts, setFollowCounts] = useState({
+    followers: 0,
+    following: 0,
+  });
+  const [followLoading, setFollowLoading] = useState(false);
+  const [myUsername] = useState(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('username') : null
+  );
+  const [isLoggedIn] = useState(() =>
+    typeof window !== 'undefined' ? !!localStorage.getItem('token') : false
+  );
+
+  const toggleFollow = async () => {
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
+    setFollowLoading(true);
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}/follow/${profile.id}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setFollowStatus(data.following);
+      setFollowCounts((prev) => ({
+        ...prev,
+        followers: data.following ? prev.followers + 1 : prev.followers - 1,
+      }));
+    }
+    setFollowLoading(false);
+  };
 
   useEffect(() => {
-    // Eigenes Profil → zu /profil weiterleiten
     const myUsername = localStorage.getItem('username');
     if (myUsername && myUsername.toLowerCase() === username?.toLowerCase()) {
       router.push('/profil');
@@ -76,10 +112,30 @@ export default function PublicProfilePage() {
         return res.json();
       })
       .then((data) => {
-        if (data) setProfile(data);
+        if (!data) return;
+        setProfile(data);
+
+        if (
+          isLoggedIn &&
+          myUsername?.toLowerCase() !== username?.toLowerCase()
+        ) {
+          const token = localStorage.getItem('token');
+          Promise.all([
+            fetch(`${API_URL}/follow/${data.id}/status`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${API_URL}/follow/${data.id}/counts`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]).then(async ([statusRes, countsRes]) => {
+            if (statusRes.ok)
+              setFollowStatus((await statusRes.json()).following);
+            if (countsRes.ok) setFollowCounts(await countsRes.json());
+          });
+        }
       })
       .finally(() => setLoading(false));
-  }, [username, router]);
+  }, [username, router, isLoggedIn]);
 
   if (loading) {
     return (
@@ -128,12 +184,31 @@ export default function PublicProfilePage() {
                   {profile.username.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <button
-                onClick={() => router.back()}
-                className="mb-1 px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
-              >
-                ← Zurück
-              </button>
+
+              {/* Buttons rechts */}
+              <div className="flex items-center gap-2 mb-1">
+                {isLoggedIn &&
+                  myUsername?.toLowerCase() !==
+                    profile.username.toLowerCase() && (
+                    <button
+                      onClick={toggleFollow}
+                      disabled={followLoading}
+                      className={`px-4 py-2 rounded-xl transition-all text-xs font-bold border ${
+                        followStatus
+                          ? 'bg-indigo-600/80 text-white border-indigo-500/50'
+                          : 'bg-gray-800/80 hover:bg-gray-700/80 border-gray-700/50 text-gray-300 hover:text-white'
+                      } disabled:opacity-40`}
+                    >
+                      {followStatus ? '✓ Gefolgt' : '+ Folgen'}
+                    </button>
+                  )}
+                <button
+                  onClick={() => router.back()}
+                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
+                >
+                  ← Zurück
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-3 mb-1">
@@ -161,21 +236,52 @@ export default function PublicProfilePage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 border-t border-gray-800/50">
+          <div className="grid grid-cols-4 border-t border-gray-800/50">
             {[
               { label: 'Witze', value: profile.witzeCount },
               { label: 'Likes', value: profile.likesReceived },
+              { label: 'Follower', value: followCounts.followers },
               { label: 'Rang', value: profile.rang },
             ].map((s, i) => (
               <div
                 key={i}
-                className={`py-4 text-center ${i < 2 ? 'border-r border-gray-800/50' : ''}`}
+                className={`py-4 text-center ${i < 3 ? 'border-r border-gray-800/50' : ''}`}
               >
                 <p className="text-xl font-black text-white">{s.value}</p>
                 <p className="text-gray-500 text-xs mt-0.5">{s.label}</p>
               </div>
-            ))}
+            ))}{' '}
+            {/* ← diese Zeile fehlt wahrscheinlich */}
           </div>
+
+          {/* Streak Banner */}
+          {(profile.currentStreak ?? 0) > 0 && (
+            <div className="flex items-center justify-between px-6 py-3 bg-orange-500/10 border-t border-orange-500/20">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🔥</span>
+                <div>
+                  <p className="text-orange-300 text-sm font-bold">
+                    {profile?.currentStreak}{' '}
+                    {profile?.currentStreak === 1 ? 'Tag' : 'Tage'} in Folge
+                  </p>
+                  <p className="text-orange-400/60 text-xs">
+                    Längster Streak: {profile?.longestStreak}{' '}
+                    {profile?.longestStreak === 1 ? 'Tag' : 'Tage'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                {Array.from({
+                  length: Math.min(profile?.currentStreak ?? 0, 7),
+                }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-3 h-3 bg-orange-500 rounded-full opacity-80"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Witze */}

@@ -25,6 +25,13 @@ model User {
   warnings       Warning[]
   bansGiven      Ban[]     @relation("BannedBy")
   warningsGiven  Warning[] @relation("WarnedBy")
+
+  following    Follow[] @relation("Follower")
+  followers    Follow[] @relation("Following")
+
+  currentStreak  Int      @default(0)
+  longestStreak  Int      @default(0)
+  lastPostDate   DateTime?
 }
 
 model Kategorie {
@@ -138,6 +145,18 @@ model Warning {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   admin     User     @relation("WarnedBy", fields: [warnedBy], references: [id])
 }
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
 
 enum Role {
   USER

@@ -89,14 +89,69 @@ export class WitzeService {
   }
 
   async create(text: string, authorId: number, kategorieId?: number | null) {
-    return this.prisma.witz.create({
+    const witz = await this.prisma.witz.create({
       data: {
         text,
         authorId,
-        kategorieId: kategorieId ? Number(kategorieId) : null, // ← Number() ergänzen
+        kategorieId: kategorieId ? Number(kategorieId) : null,
       },
       include: { kategorie: true, author: true },
     });
+
+    // Streak aktualisieren
+    await this.updateStreak(authorId);
+
+    return witz;
+  }
+
+  private async updateStreak(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { currentStreak: true, longestStreak: true, lastPostDate: true },
+    });
+
+    if (!user) return;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (user.lastPostDate) {
+      const last = new Date(user.lastPostDate);
+      const lastDay = new Date(
+        last.getFullYear(),
+        last.getMonth(),
+        last.getDate(),
+      );
+      const diffDays = Math.round(
+        (today.getTime() - lastDay.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      if (diffDays === 0) return; // Heute schon gepostet
+      if (diffDays === 1) {
+        // Streak verlängern
+        const newStreak = user.currentStreak + 1;
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            currentStreak: newStreak,
+            longestStreak: Math.max(newStreak, user.longestStreak),
+            lastPostDate: now,
+          },
+        });
+      } else {
+        // Streak gebrochen
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { currentStreak: 1, lastPostDate: now },
+        });
+      }
+    } else {
+      // Erster Post
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { currentStreak: 1, longestStreak: 1, lastPostDate: now },
+      });
+    }
   }
 
   async findByUser(userId: number) {

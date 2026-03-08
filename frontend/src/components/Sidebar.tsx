@@ -19,6 +19,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { emoji: '🏠', name: 'Home', path: '/' },
   { emoji: '👤', name: 'Profil', path: '/profil' },
+  { emoji: '👥', name: 'Following', path: '/following' },
   { emoji: '🏆', name: 'Leaderboard', path: '/leaderboard' },
   { emoji: '✏️', name: 'Witz posten', path: '/post' },
 ];

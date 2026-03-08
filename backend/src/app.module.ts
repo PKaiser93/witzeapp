@@ -9,6 +9,7 @@ import { CommentsModule } from './comments/comments.modul';
 import { AdminModule } from './admin/admin.module';
 import { AppConfigModule } from './config/config.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { FollowModule } from './follow/follow.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AdminModule,
     AppConfigModule,
     NotificationsModule,
+    FollowModule,
   ],
 })
 export class AppModule {}
