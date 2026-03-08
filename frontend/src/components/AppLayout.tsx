@@ -35,6 +35,7 @@ function MaintenanceGuard({ children }: { children: ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const { announcement_active, announcement } = useAppConfig();
   const hasBanner = announcement_active && !!announcement;
 
@@ -50,6 +51,31 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <MaintenanceGuard>{children}</MaintenanceGuard>
         </div>
       </main>
+      <footer className="md:ml-64 border-t border-gray-800/50 py-4 px-6">
+        <div className="max-w-3xl mx-auto flex items-center justify-between text-xs text-gray-600">
+          <span>© 2026 WitzeApp</span>
+          <div className="flex gap-4">
+            <button
+              onClick={() => router.push('/impressum')}
+              className="hover:text-gray-400 transition-colors"
+            >
+              Impressum
+            </button>
+            <button
+              onClick={() => router.push('/datenschutz')}
+              className="hover:text-gray-400 transition-colors"
+            >
+              Datenschutz
+            </button>
+            <button
+              onClick={() => router.push('/hilfe')}
+              className="hover:text-gray-400 transition-colors"
+            >
+              Hilfe
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
