@@ -32,6 +32,7 @@ export default function LoginPage() {
         return;
       }
       localStorage.setItem('token', data.access_token);
+      localStorage.setItem('refresh_token', data.refresh_token)
       localStorage.setItem('email', email);
       if (data.user?.username)
         localStorage.setItem('username', data.user.username);

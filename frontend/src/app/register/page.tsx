@@ -92,6 +92,7 @@ export default function RegisterPage() {
       });
       const loginData = await loginRes.json();
       localStorage.setItem('token', loginData.access_token);
+      localStorage.setItem('refresh_token', loginData.refresh_token);
       localStorage.setItem('email', email);
       localStorage.setItem('username', username);
       if (loginData.user?.role)
