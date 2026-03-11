@@ -156,8 +156,23 @@ export class AuthService {
     return { access_token: accessToken };
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string, accessToken?: string) {
+    // Refresh Token löschen
     await this.prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+
+    // Access Token blacklisten falls vorhanden
+    if (accessToken) {
+      try {
+        const decoded = this.jwtService.decode(accessToken) as { exp?: number };
+        if (decoded?.exp) {
+          const expiresAt = new Date(decoded.exp * 1000);
+          await this.prisma.blacklistedToken.create({
+            data: { token: accessToken, expiresAt },
+          });
+        }
+      } catch {}
+    }
+
     return { success: true };
   }
 

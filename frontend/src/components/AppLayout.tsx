@@ -19,20 +19,43 @@ function MaintenanceGuard({ children }: { children: ReactNode }) {
     }
 
     const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refresh_token');
+
+    // Kein Access Token aber Refresh Token → erneuern
+    if (!token && refreshToken) {
+      fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.access_token) {
+              localStorage.setItem('token', data.access_token);
+            } else {
+              // Refresh fehlgeschlagen → ausloggen
+              localStorage.clear();
+            }
+          })
+          .catch(() => {});
+      return;
+    }
+
     if (!token) return;
 
     fetch(`${API_URL}/auth/me/ban-status`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.banned) router.push('/banned');
-      })
-      .catch(() => {});
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.banned) router.push('/banned');
+        })
+        .catch(() => {});
   }, [router, maintenance]);
 
   return <>{children}</>;
 }
+
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();

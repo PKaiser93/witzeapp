@@ -17,12 +17,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: jwtSecret,
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: JwtPayload): Promise<JwtPayload> {
+  async validate(req: Request, payload: JwtPayload): Promise<JwtPayload> {
     if (!payload?.sub || !payload.email) {
       throw new UnauthorizedException('Ungültiger Token-Payload');
+    }
+
+    // Token aus Header extrahieren
+    const authHeader = (req as any).headers?.authorization ?? '';
+    const token = authHeader.replace('Bearer ', '');
+
+    // Blacklist prüfen
+    if (token) {
+      const blacklisted = await this.prisma.blacklistedToken.findUnique({
+        where: { token },
+      });
+      if (blacklisted) throw new UnauthorizedException('Token ungültig');
     }
 
     // User existiert noch?
@@ -32,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
     if (!user) throw new UnauthorizedException('User nicht gefunden');
 
-    // Gebannt?
+    // Ban prüfen
     const ban = await this.prisma.ban.findUnique({
       where: { userId: payload.sub },
     });
@@ -40,7 +53,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (!ban.expiresAt || ban.expiresAt > new Date()) {
         throw new UnauthorizedException('Dein Account ist gesperrt');
       }
-      // Ban abgelaufen → deaktivieren
       await this.prisma.ban.update({
         where: { userId: payload.sub },
         data: { active: false },

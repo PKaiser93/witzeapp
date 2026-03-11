@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Headers,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -41,8 +42,12 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Body('refresh_token') refreshToken: string) {
-    return this.authService.logout(refreshToken);
+  async logout(
+    @Body('refresh_token') refreshToken: string,
+    @Headers('authorization') authHeader: string,
+  ) {
+    const accessToken = authHeader?.replace('Bearer ', '');
+    return this.authService.logout(refreshToken, accessToken);
   }
 
   @Get('check-username/:username')

@@ -108,10 +108,15 @@ export default function Navbar() {
 
   const logout = async () => {
     const refreshToken = localStorage.getItem('refresh_token');
+    const token = localStorage.getItem('token');
+
     if (refreshToken) {
       await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
     }

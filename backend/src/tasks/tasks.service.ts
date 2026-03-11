@@ -53,4 +53,12 @@ export class TasksService {
       `🔔 Notification Cleanup: ${deleted.count} Benachrichtigungen gelöscht`,
     );
   }
+
+  @Cron('0 4 * * *')
+  async cleanupBlacklistedTokens() {
+    const deleted = await this.prisma.blacklistedToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    this.logger.log(`🗑️ Blacklist Cleanup: ${deleted.count} Tokens gelöscht`);
+  }
 }
