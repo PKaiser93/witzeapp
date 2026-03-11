@@ -135,6 +135,13 @@ export default function LoginPage() {
                   >
                     {showPassword ? '🙈' : '👁️'}
                   </button>
+                  <button
+                      type="button"
+                      onClick={() => router.push('/forgot-password')}
+                      className="text-indigo-400 hover:text-indigo-300 text-xs transition-colors"
+                  >
+                    Passwort vergessen?
+                  </button>
                 </div>
               </div>
 

@@ -325,4 +325,68 @@ export class AuthService {
       }
     }
   }
+
+  async forgotPassword(email: string): Promise<{ success: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+      select: { id: true, email: true, username: true },
+    });
+
+    // Immer success zurückgeben – kein Hinweis ob E-Mail existiert (Security)
+    if (!user) return { success: true };
+
+    // Alte Reset-Tokens löschen
+    await this.prisma.passwordResetToken.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Neuen Token erstellen – 1 Stunde gültig
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.prisma.passwordResetToken.create({
+      data: { token, userId: user.id, expiresAt },
+    });
+
+    await this.mailService.sendPasswordResetMail(
+      user.email,
+      user.username,
+      token,
+    );
+
+    return { success: true };
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<{ success: boolean }> {
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+    });
+
+    if (!record) {
+      throw new UnauthorizedException('Ungültiger Reset-Token');
+    }
+
+    if (record.expiresAt < new Date()) {
+      await this.prisma.passwordResetToken.delete({ where: { token } });
+      throw new UnauthorizedException('Token abgelaufen – bitte neu anfordern');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: record.userId },
+      data: { password: hashedPassword },
+    });
+
+    // Token löschen + alle Refresh Tokens und Blacklist bereinigen (alle Sessions beenden)
+    await this.prisma.passwordResetToken.delete({ where: { token } });
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId: record.userId },
+    });
+
+    return { success: true };
+  }
 }

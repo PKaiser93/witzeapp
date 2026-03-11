@@ -82,4 +82,18 @@ export class AuthController {
   async resendVerification(@CurrentUser() user: JwtPayload) {
     return this.authService.resendVerificationMail(user.sub);
   }
+
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('password') password: string,
+  ) {
+    return this.authService.resetPassword(token, password);
+  }
 }

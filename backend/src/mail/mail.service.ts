@@ -28,4 +28,28 @@ export class MailService {
       `,
     });
   }
+
+  async sendPasswordResetMail(email: string, username: string, token: string) {
+    const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    await this.mailer.sendMail({
+      to: email,
+      subject: 'WitzeApp – Passwort zurücksetzen',
+      html: `
+      <h2>Hallo ${username}!</h2>
+      <p>Du hast eine Anfrage gestellt, dein Passwort zurückzusetzen.</p>
+      <a href="${url}" style="
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #4f46e5;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: bold;
+      ">Passwort zurücksetzen</a>
+      <p>Der Link ist <strong>1 Stunde</strong> gültig.</p>
+      <p>Falls du kein Passwort-Reset angefordert hast, kannst du diese E-Mail ignorieren.</p>
+    `,
+    });
+  }
 }
