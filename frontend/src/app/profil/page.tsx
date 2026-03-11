@@ -29,6 +29,7 @@ interface WitzItem {
 }
 
 interface ProfileData {
+  id: number;
   witze: WitzItem[];
   likesReceived: number;
   rang: string;
@@ -98,6 +99,7 @@ export default function ProfilPage() {
     followers: 0,
     following: 0,
   });
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const saveBio = async () => {
     const token = localStorage.getItem('token');
@@ -123,7 +125,9 @@ export default function ProfilPage() {
       ]);
       if (res.status === 401) {
         const errData = await res.json();
-        if (errData?.message === 'Bitte bestätige zuerst deine E-Mail-Adresse') {
+        if (
+          errData?.message === 'Bitte bestätige zuerst deine E-Mail-Adresse'
+        ) {
           router.push('/verify-pending');
           return;
         }
@@ -215,50 +219,81 @@ export default function ProfilPage() {
   return (
     <AppLayout>
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Cover + Avatar */}
+        {/* Profil-Card */}
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl overflow-hidden">
           {/* Cover */}
           <div className="h-32 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600" />
 
-          {/* Avatar + Info */}
+          {/* Avatar + Aktionen */}
           <div className="px-6 pb-6">
             <div className="flex items-end justify-between -mt-10 mb-4">
+              {/* Avatar */}
               <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl border-4 border-gray-900 flex items-center justify-center shadow-xl">
                 <span className="text-3xl font-black text-white">
                   {username.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div className="flex gap-2 mb-1">
+
+              {/* Einstellungen-Dropdown */}
+              <div className="relative mb-1">
                 <button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
+                  onClick={() => setSettingsOpen((p) => !p)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-sm font-medium"
                 >
-                  🔒 Passwort
+                  ⚙️ Einstellungen
+                  <span className="text-xs text-gray-500">▾</span>
                 </button>
-                {feature_delete_account && (
-                  <button
-                    onClick={() => setShowDeleteModal(true)}
-                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 rounded-xl transition-all text-xs font-medium"
-                  >
-                    🗑️ Account löschen
-                  </button>
+
+                {settingsOpen && (
+                  <div className="absolute right-0 top-11 bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl w-52 py-1 z-50">
+                    <button
+                      onClick={() => {
+                        setShowUsernameModal(true);
+                        setSettingsOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800/50 text-sm transition-all"
+                    >
+                      ✏️ Username ändern
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowPasswordModal(true);
+                        setSettingsOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800/50 text-sm transition-all"
+                    >
+                      🔒 Passwort ändern
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportData();
+                        setSettingsOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800/50 text-sm transition-all"
+                    >
+                      📦 Daten exportieren
+                    </button>
+                    {feature_delete_account && (
+                      <>
+                        <hr className="border-gray-800/50 my-1" />
+                        <button
+                          onClick={() => {
+                            setShowDeleteModal(true);
+                            setSettingsOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-red-400 hover:text-red-300 hover:bg-gray-800/50 text-sm transition-all"
+                        >
+                          🗑️ Account löschen
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
-                <button
-                  onClick={() => setShowUsernameModal(true)}
-                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
-                >
-                  ✏️ Username
-                </button>
-                <button
-                  onClick={exportData}
-                  className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition-all text-xs font-medium"
-                >
-                  📦 Daten exportieren
-                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 mb-1">
+            {/* Name + Rolle */}
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h1 className="text-2xl font-black text-white">@{username}</h1>
               <span
                 className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${badge.color}`}
@@ -272,6 +307,7 @@ export default function ProfilPage() {
               )}
             </div>
             <p className="text-gray-500 text-sm">{profile?.email}</p>
+
             {/* Bio */}
             <div className="mt-3">
               {editingBio ? (
@@ -329,7 +365,7 @@ export default function ProfilPage() {
             </div>
           </div>
 
-          {/* Stats Bar */}
+          {/* Stats */}
           <div className="grid grid-cols-4 border-t border-gray-800/50">
             {[
               { label: 'Witze', value: profile?.witze.length ?? 0 },
@@ -344,7 +380,7 @@ export default function ProfilPage() {
                 <p className="text-xl font-black text-white">{s.value}</p>
                 <p className="text-gray-500 text-xs mt-0.5">{s.label}</p>
               </div>
-            ))}{' '}
+            ))}
           </div>
 
           {/* Streak Banner */}
@@ -375,8 +411,8 @@ export default function ProfilPage() {
               </div>
             </div>
           )}
-        </div>{' '}
-        {/* ← Ende der Profil-Card hier */}
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-2">
           <button
@@ -402,9 +438,12 @@ export default function ProfilPage() {
             </button>
           )}
         </div>
+
         {error && <p className="text-red-400 text-sm px-1">{error}</p>}
+
         {/* Badges */}
         <BadgeList badges={badges} />
+
         {/* Tab: Witze */}
         {activeTab === 'witze' && (
           <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
@@ -525,6 +564,7 @@ export default function ProfilPage() {
             </div>
           </div>
         )}
+
         {/* Tab: Verwarnungen */}
         {activeTab === 'verwarnungen' && (
           <div className="bg-yellow-500/5 backdrop-blur-xl border border-yellow-500/20 rounded-3xl p-6">
