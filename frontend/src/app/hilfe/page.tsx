@@ -1,8 +1,14 @@
 'use client';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AppLayout from '@/components/AppLayout';
 
 export default function HilfePage() {
   const router = useRouter();
+  const [openIndex, setOpenIndex] = useState<string | null>(null);
+
+  const toggle = (key: string) =>
+    setOpenIndex((prev) => (prev === key ? null : key));
 
   const sections = [
     {
@@ -10,7 +16,7 @@ export default function HilfePage() {
       items: [
         {
           q: 'Wie registriere ich mich?',
-          a: 'Klicke auf "Registrieren" oben rechts und fülle das Formular aus.',
+          a: 'Klicke auf "Registrieren" und fülle das Formular aus. Du erhältst danach eine Bestätigungs-E-Mail – erst nach der Bestätigung ist dein Account aktiv.',
         },
         {
           q: 'Ist die WitzeApp kostenlos?',
@@ -18,7 +24,15 @@ export default function HilfePage() {
         },
         {
           q: 'Kann ich die App ohne Account nutzen?',
-          a: 'Ja, als Gast kannst du Witze lesen und Kommentare lesen. Zum Posten, Liken und Kommentieren benötigst du einen Account.',
+          a: 'Ja, als Gast kannst du Witze und Kommentare lesen. Zum Posten, Liken und Kommentieren benötigst du einen Account.',
+        },
+        {
+          q: 'Ich habe mein Passwort vergessen – was tun?',
+          a: 'Auf der Login-Seite auf "Passwort vergessen" klicken. Du bekommst einen Reset-Link per E-Mail zugeschickt.',
+        },
+        {
+          q: 'Meine Bestätigungs-E-Mail ist nicht angekommen?',
+          a: 'Prüfe deinen Spam-Ordner. Auf der Seite "E-Mail bestätigen" kannst du die E-Mail erneut anfordern.',
         },
       ],
     },
@@ -27,7 +41,7 @@ export default function HilfePage() {
       items: [
         {
           q: 'Wie poste ich einen Witz?',
-          a: 'Entweder über den "Neuer Witz"-Button oder das Schnelleingabefeld im Forum.',
+          a: 'Über den "➕ Neuer Witz"-Button oder das Schnelleingabefeld direkt im Feed.',
         },
         {
           q: 'Kann ich meinen Witz bearbeiten?',
@@ -39,7 +53,11 @@ export default function HilfePage() {
         },
         {
           q: 'Was sind Kategorien?',
-          a: 'Kategorien helfen dabei Witze zu sortieren. Du kannst beim Posten eine Kategorie auswählen.',
+          a: 'Kategorien helfen dabei Witze zu sortieren (z.B. 😂 Flachwitze, 🖤 Schwarzer Humor). Du kannst beim Posten eine Kategorie auswählen.',
+        },
+        {
+          q: 'Gibt es eine Zeichengrenze?',
+          a: 'Ja, ein Witz darf maximal 500 Zeichen lang sein.',
         },
       ],
     },
@@ -52,11 +70,11 @@ export default function HilfePage() {
         },
         {
           q: 'Wie kommentiere ich?',
-          a: 'Klicke auf das 💬-Symbol unter einem Witz um die Kommentare zu öffnen.',
+          a: 'Klicke auf das 💬-Symbol unter einem Witz um die Kommentare aufzuklappen.',
         },
         {
           q: 'Bekomme ich Benachrichtigungen?',
-          a: 'Ja, du wirst benachrichtigt wenn jemand deinen Witz liked, kommentiert oder dir folgt.',
+          a: 'Ja, du wirst benachrichtigt wenn jemand deinen Witz liked, kommentiert oder dir folgt. Die Glocke oben rechts zeigt ungelesene Nachrichten.',
         },
       ],
     },
@@ -65,23 +83,60 @@ export default function HilfePage() {
       items: [
         {
           q: 'Wie ändere ich mein Passwort?',
-          a: 'Auf deinem Profil auf "🔒 Passwort" klicken.',
+          a: 'Auf deinem Profil unter ⚙️ Einstellungen → "🔒 Passwort ändern".',
         },
         {
           q: 'Wie ändere ich meinen Username?',
-          a: 'Auf deinem Profil auf "✏️ Username" klicken.',
+          a: 'Auf deinem Profil unter ⚙️ Einstellungen → "✏️ Username ändern".',
+        },
+        {
+          q: 'Wie bearbeite ich meine Bio?',
+          a: 'Auf deinem Profil direkt auf den Bio-Text klicken – er wird dann editierbar.',
         },
         {
           q: 'Was ist ein Streak?',
-          a: 'Ein Streak zählt wie viele Tage hintereinander du mindestens einen Witz gepostet hast.',
+          a: 'Ein Streak zählt wie viele Tage hintereinander du mindestens einen Witz gepostet hast. 🔥 Halte ihn aufrecht!',
         },
         {
           q: 'Was sind Badges?',
-          a: 'Badges sind Auszeichnungen die du automatisch verdienst. z.B. für deinen ersten Witz oder 10 Likes.',
+          a: 'Badges sind Auszeichnungen die du automatisch verdienst – z.B. für deinen ersten Witz, 10 Likes oder einen 7-Tage-Streak.',
         },
         {
           q: 'Was ist der Rang?',
-          a: 'Der Rang steigt mit der Anzahl der Likes die du erhalten hast – von 🥉 Neuling bis 👑 König der Witze.',
+          a: 'Der Rang steigt mit der Anzahl der erhaltenen Likes – von 🥉 Neuling bis 👑 König der Witze.',
+        },
+        {
+          q: 'Was bedeutet der blaue Haken ✓?',
+          a: 'Der blaue Haken kennzeichnet verifizierte Accounts. Du kannst dich dafür auf deinem Profil bewerben, wenn du den Status "Meister" erreicht hast.',
+        },
+        {
+          q: 'Wie kann ich jemandem folgen?',
+          a: 'Auf dem öffentlichen Profil eines Users auf "+ Folgen" klicken. Du siehst dann deren Aktivität im Feed.',
+        },
+        {
+          q: 'Kann ich meine Daten exportieren?',
+          a: 'Ja, unter ⚙️ Einstellungen → "📦 Daten exportieren" kannst du alle deine Daten als JSON-Datei herunterladen.',
+        },
+        {
+          q: 'Wie lösche ich meinen Account?',
+          a: 'Unter ⚙️ Einstellungen → "🗑️ Account löschen" (falls vom Admin aktiviert). Diese Aktion ist unwiderruflich.',
+        },
+      ],
+    },
+    {
+      title: '🔍 Suche & Filter',
+      items: [
+        {
+          q: 'Wie suche ich nach Witzen?',
+          a: 'Im Feed oben gibt es eine Suchleiste – gib einen Begriff ein und die Ergebnisse werden live gefiltert.',
+        },
+        {
+          q: 'Wie filtere ich nach Kategorien?',
+          a: 'Unter der Suchleiste im Feed kannst du eine Kategorie auswählen um nur Witze dieser Kategorie zu sehen.',
+        },
+        {
+          q: 'Wie sortiere ich den Feed?',
+          a: 'Du kannst zwischen "Neu", "Top" (meiste Likes) und "Kommentare" sortieren.',
         },
       ],
     },
@@ -94,74 +149,92 @@ export default function HilfePage() {
         },
         {
           q: 'Was passiert nach einer Meldung?',
-          a: 'Ein Admin prüft die Meldung und entscheidet ob der Witz gelöscht wird.',
+          a: 'Ein Admin prüft die Meldung und entscheidet ob der Witz entfernt wird.',
         },
         {
           q: 'Was ist eine Verwarnung?',
-          a: 'Admins können User für Regelverstöße verwarnen. Verwarnungen sind nur für dich sichtbar.',
+          a: 'Admins können User für Regelverstöße verwarnen. Verwarnungen sind nur für dich auf deinem Profil sichtbar.',
+        },
+        {
+          q: 'Ich wurde gebannt – was nun?',
+          a: 'Bei einem temporären Ban siehst du wie lange er noch dauert. Bei einem permanenten Ban kannst du keinen neuen Account erstellen.',
         },
       ],
     },
   ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-slate-900">
-      <div className="max-w-3xl mx-auto px-6 py-12">
+    <AppLayout>
+      <div className="max-w-3xl mx-auto px-4 py-10">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <span className="text-5xl block mb-4">❓</span>
           <h1 className="text-4xl font-black text-white mb-3">Hilfe & FAQ</h1>
-          <p className="text-gray-400">
+          <p className="text-gray-400 text-sm">
             Antworten auf häufige Fragen zur WitzeApp
           </p>
-          <div className="flex gap-3 justify-center mt-6">
-            <button
-              onClick={() => router.push('/')}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition-all"
-            >
-              🏠 Zum Forum
-            </button>
-            <button
-              onClick={() => router.push('/register')}
-              className="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700/50 text-gray-300 font-bold rounded-xl text-sm transition-all"
-            >
-              Registrieren
-            </button>
-          </div>
         </div>
 
         {/* Sections */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {sections.map((section) => (
             <div
               key={section.title}
-              className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6"
+              className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl overflow-hidden"
             >
-              <h2 className="text-xl font-black text-white mb-4">
-                {section.title}
-              </h2>
-              <div className="space-y-4">
-                {section.items.map((item, i) => (
-                  <div
-                    key={i}
-                    className="border-b border-gray-800/50 last:border-0 pb-4 last:pb-0"
-                  >
-                    <p className="text-white text-sm font-semibold mb-1">
-                      {item.q}
-                    </p>
-                    <p className="text-gray-400 text-sm">{item.a}</p>
-                  </div>
-                ))}
+              <div className="px-6 py-4 border-b border-gray-800/50">
+                <h2 className="text-lg font-black text-white">
+                  {section.title}
+                </h2>
+              </div>
+              <div className="divide-y divide-gray-800/50">
+                {section.items.map((item, i) => {
+                  const key = `${section.title}-${i}`;
+                  const isOpen = openIndex === key;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => toggle(key)}
+                      className="w-full text-left px-6 py-4 hover:bg-gray-800/30 transition-all"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-white text-sm font-semibold">
+                          {item.q}
+                        </p>
+                        <span
+                          className={`text-gray-500 text-xs transition-transform flex-shrink-0 ${
+                            isOpen ? 'rotate-180' : ''
+                          }`}
+                        >
+                          ▼
+                        </span>
+                      </div>
+                      {isOpen && (
+                        <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+                          {item.a}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-12 text-gray-600 text-sm">
-          <p>Noch Fragen? Schreib einen Kommentar oder melde dich an.</p>
+        <div className="text-center mt-10 p-6 bg-gray-900/50 border border-gray-800/50 rounded-3xl">
+          <p className="text-gray-400 text-sm mb-4">
+            Deine Frage ist nicht dabei?
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition-all"
+          >
+            💬 Im Forum fragen
+          </button>
         </div>
       </div>
-    </main>
+    </AppLayout>
   );
 }

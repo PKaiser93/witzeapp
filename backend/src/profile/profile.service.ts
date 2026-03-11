@@ -302,6 +302,7 @@ export class ProfileService {
       warnings,
       followers,
       following,
+      notifications,
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -311,12 +312,24 @@ export class ProfileService {
           email: true,
           bio: true,
           role: true,
+          isVerified: true,
+          rang: true,
+          currentStreak: true,
+          longestStreak: true,
           createdAt: true,
         },
       }),
       this.prisma.witz.findMany({
         where: { authorId: userId },
-        select: { id: true, text: true, likes: true, createdAt: true },
+        select: {
+          id: true,
+          text: true,
+          likes: true,
+          isEdited: true,
+          createdAt: true,
+          updatedAt: true,
+          kategorie: { select: { name: true, emoji: true } },
+        },
       }),
       this.prisma.comment.findMany({
         where: { authorId: userId },
@@ -336,6 +349,12 @@ export class ProfileService {
       }),
       this.prisma.follow.count({ where: { followingId: userId } }),
       this.prisma.follow.count({ where: { followerId: userId } }),
+      this.prisma.notification.findMany({
+        where: { userId },
+        select: { type: true, message: true, read: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
     ]);
 
     return {
@@ -346,6 +365,7 @@ export class ProfileService {
         anzahlWitze: witze.length,
         anzahlKommentare: kommentare.length,
         anzahlLikes: likes.length,
+        anzahlBadges: badges.length,
         followers,
         following,
       },
@@ -354,6 +374,7 @@ export class ProfileService {
       likes,
       badges,
       verwarnungen: warnings,
+      benachrichtigungen: notifications,
     };
   }
 }
