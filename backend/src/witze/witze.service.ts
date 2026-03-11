@@ -38,13 +38,18 @@ export class WitzeService {
     kategorie?: string,
     search?: string,
     sort?: string,
-  ): Promise<WitzResponse[]> {
+    cursor?: number,
+    limit: number = 20,
+  ): Promise<{ witze: WitzResponse[]; nextCursor: number | null }> {
     let orderBy: any = { createdAt: 'desc' };
-
-    if (sort === 'top') orderBy = { likeLikes: { _count: 'desc' } };
-    if (sort === 'comments') orderBy = { comments: { _count: 'desc' } };
+    if (sort === 'top')
+      orderBy = [{ likeLikes: { _count: 'desc' } }, { id: 'desc' }];
+    if (sort === 'comments')
+      orderBy = [{ comments: { _count: 'desc' } }, { id: 'desc' }];
 
     const witze = await this.prisma.witz.findMany({
+      take: limit + 1, // 1 extra um zu prüfen ob es mehr gibt
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       where: {
         ...(kategorie
           ? { kategorie: { name: { equals: kategorie, mode: 'insensitive' } } }
@@ -68,12 +73,21 @@ export class WitzeService {
       orderBy,
     });
 
-    return witze.map((w) => ({
-      ...w,
-      likes: w._count.likeLikes ?? w.likes ?? 0,
-      userLiked: userId ? (w.likeLikes?.length ?? 0) > 0 : false,
-      commentCount: w._count.comments ?? 0,
-    }));
+    // Prüfen ob es mehr gibt
+    const hasMore = witze.length > limit;
+    if (hasMore) witze.pop(); // Extra-Item entfernen
+
+    const nextCursor = hasMore ? witze[witze.length - 1].id : null;
+
+    return {
+      witze: witze.map((w) => ({
+        ...w,
+        likes: w._count.likeLikes ?? w.likes ?? 0,
+        userLiked: userId ? (w.likeLikes?.length ?? 0) > 0 : false,
+        commentCount: w._count.comments ?? 0,
+      })),
+      nextCursor,
+    };
   }
 
   async findRandom() {

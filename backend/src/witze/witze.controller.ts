@@ -32,8 +32,17 @@ export class WitzeController {
     @Query('kategorie') kategorie?: string,
     @Query('search') search?: string,
     @Query('sort') sort?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.witzeService.findAll(user?.sub, kategorie, search, sort);
+    return this.witzeService.findAll(
+      user?.sub,
+      kategorie,
+      search,
+      sort,
+      cursor ? parseInt(cursor) : undefined,
+      limit ? parseInt(limit) : 20,
+    );
   }
 
   @Get('public')
@@ -41,8 +50,17 @@ export class WitzeController {
     @Query('kategorie') kategorie?: string,
     @Query('search') search?: string,
     @Query('sort') sort?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.witzeService.findAll(undefined, kategorie, search, sort);
+    return this.witzeService.findAll(
+      undefined,
+      kategorie,
+      search,
+      sort,
+      cursor ? parseInt(cursor) : undefined,
+      limit ? parseInt(limit) : 20,
+    );
   }
 
   @SkipThrottle({ short: true, medium: true })
