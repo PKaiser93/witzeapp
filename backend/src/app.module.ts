@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
@@ -15,10 +15,11 @@ import { FollowModule } from './follow/follow.module';
 import { envValidationSchema } from './config/env.validation';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -26,6 +27,23 @@ import { TasksModule } from './tasks/tasks.module';
       validationOptions: {
         abortEarly: true,
       },
+    }),
+    ScheduleModule.forRoot(),
+    MailerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        transport: {
+          host: config.get('MAIL_HOST'),
+          port: config.get<number>('MAIL_PORT'),
+          auth: {
+            user: config.get('MAIL_USER'),
+            pass: config.get('MAIL_PASS'),
+          },
+        },
+        defaults: {
+          from: config.get('MAIL_FROM'),
+        },
+      }),
     }),
     ThrottlerModule.forRoot([
       {
@@ -50,6 +68,7 @@ import { TasksModule } from './tasks/tasks.module';
     AppConfigModule,
     NotificationsModule,
     FollowModule,
+    MailModule,
   ],
   providers: [
     {

@@ -38,10 +38,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (blacklisted) throw new UnauthorizedException('Token ungültig');
     }
 
-    // User existiert noch?
+    // User existiert noch? + isVerified laden
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true },
+      select: { id: true, isVerified: true }, // <--- isVerified ergänzt
     });
     if (!user) throw new UnauthorizedException('User nicht gefunden');
 
@@ -64,6 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: payload.username,
       email: payload.email,
       role: payload.role,
+      isVerified: user.isVerified, // <--- NEU
       iat: payload.iat,
       exp: payload.exp,
     };

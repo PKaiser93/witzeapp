@@ -12,6 +12,7 @@ model User {
   email    String    @unique
   password String
   role     Role      @default(USER)
+  isVerified       Boolean  @default(false)
   witze    Witz[]
   likes    Like[]
   comments Comment[]
@@ -19,22 +20,30 @@ model User {
   reports Report[]
   auditLogs AuditLog[]
   bio String? @default("")
-  createdAt     DateTime  @default(now())
 
   ban            Ban?
   warnings       Warning[]
   bansGiven      Ban[]     @relation("BannedBy")
   warningsGiven  Warning[] @relation("WarnedBy")
-
   following    Follow[] @relation("Follower")
   followers    Follow[] @relation("Following")
-
   currentStreak  Int      @default(0)
   longestStreak  Int      @default(0)
   lastPostDate   DateTime?
-
   badges Badge[]
+  verificationTokens VerificationToken[]
   refreshTokens RefreshToken[]
+  createdAt     DateTime  @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model VerificationToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model Badge {

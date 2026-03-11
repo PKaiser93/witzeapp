@@ -16,6 +16,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { BanService } from '../admin/ban.service';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
 import { Throttle } from '@nestjs/throttler';
+import { SkipEmailVerification } from '../common/decorators/skip-email-verification.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -65,5 +66,20 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getBanStatus(@CurrentUser() user: JwtPayload) {
     return this.banService.getBanStatus(user.sub);
+  }
+
+  // ─── NEU: E-Mail Verifizierung ───────────────────────────────────────────
+
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
+  @Throttle({ short: { limit: 3, ttl: 60000 } })
+  @Post('resend-verification')
+  @UseGuards(JwtAuthGuard)
+  @SkipEmailVerification() // <--- NEU
+  async resendVerification(@CurrentUser() user: JwtPayload) {
+    return this.authService.resendVerificationMail(user.sub);
   }
 }

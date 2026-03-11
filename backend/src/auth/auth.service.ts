@@ -2,7 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
+import { MailService } from '../mail/mail.service';
 
 interface RegisterData {
   email: string;
@@ -28,7 +29,92 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
+
+  async verifyEmail(token: string): Promise<LoginResult> {
+    const record = await this.prisma.verificationToken.findUnique({
+      where: { token },
+    });
+
+    if (!record) {
+      throw new UnauthorizedException('Ungültiger Verifizierungs-Token');
+    }
+
+    if (record.expiresAt < new Date()) {
+      await this.prisma.verificationToken.delete({ where: { token } });
+      throw new UnauthorizedException('Token abgelaufen – bitte neu anfordern');
+    }
+
+    // User als verifiziert markieren
+    const user = await this.prisma.user.update({
+      where: { id: record.userId },
+      data: { isVerified: true },
+      select: { id: true, email: true, username: true, role: true },
+    });
+
+    await this.prisma.verificationToken.delete({ where: { token } });
+
+    // Neue Tokens ausstellen
+    const payload = {
+      sub: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '15m',
+    });
+
+    const refreshToken = randomBytes(64).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    await this.prisma.refreshToken.create({
+      data: { token: refreshToken, userId: user.id, expiresAt },
+    });
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user,
+    };
+  }
+
+  async resendVerificationMail(userId: number): Promise<{ success: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, username: true, isVerified: true },
+    });
+
+    if (!user) throw new UnauthorizedException('User nicht gefunden');
+    if (user.isVerified) {
+      throw new UnauthorizedException('E-Mail bereits verifiziert');
+    }
+
+    // Alte Token löschen
+    await this.prisma.verificationToken.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Neuen Token erstellen
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.prisma.verificationToken.create({
+      data: { token, userId: user.id, expiresAt },
+    });
+
+    await this.mailService.sendVerificationMail(
+      user.email,
+      user.username,
+      token,
+    );
+
+    return { success: true };
+  }
 
   async register(data: RegisterData): Promise<AuthUser> {
     const email = data.email.trim().toLowerCase();
@@ -50,6 +136,21 @@ export class AuthService {
         role: true,
       },
     });
+
+    // Verifizierungs-Token generieren
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 Stunden
+
+    await this.prisma.verificationToken.create({
+      data: {
+        token,
+        userId: newUser.id,
+        expiresAt,
+      },
+    });
+
+    // Verifizierungs-E-Mail senden
+    await this.mailService.sendVerificationMail(email, username, token);
 
     return newUser;
   }
@@ -100,6 +201,7 @@ export class AuthService {
       username: user.username,
       email: user.email,
       role: user.role,
+      isVerified: user.isVerified,
     };
 
     // Access Token – kurzlebig
@@ -135,7 +237,9 @@ export class AuthService {
   async refreshAccessToken(refreshToken: string) {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: { select: { id: true, username: true, email: true, role: true } } },
+      include: {
+        user: { select: { id: true, username: true, email: true, role: true } },
+      },
     });
 
     if (!stored) throw new UnauthorizedException('Ungültiger Refresh Token');
@@ -151,14 +255,18 @@ export class AuthService {
       role: stored.user.role,
     };
 
-    const accessToken = await this.jwtService.signAsync(payload, { expiresIn: '15m' });
+    const accessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '15m',
+    });
 
     return { access_token: accessToken };
   }
 
   async logout(refreshToken: string, accessToken?: string) {
     // Refresh Token löschen
-    await this.prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+    await this.prisma.refreshToken.deleteMany({
+      where: { token: refreshToken },
+    });
 
     // Access Token blacklisten falls vorhanden
     if (accessToken) {

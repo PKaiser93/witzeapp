@@ -37,6 +37,14 @@ export default function LoginPage() {
       if (data.user?.username)
         localStorage.setItem('username', data.user.username);
       if (data.user?.role) localStorage.setItem('role', data.user.role);
+      try {
+        const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+        if (payload.isVerified === false) {
+          router.push('/verify-pending');
+          return;
+        }
+      } catch {}
+
       router.push('/');
     } catch {
       setError('Verbindung zum Server fehlgeschlagen.');

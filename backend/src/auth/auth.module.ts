@@ -9,6 +9,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { BanService } from '../admin/ban.service';
 import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ConfigModule,
     AuditModule,
     NotificationsModule,
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {

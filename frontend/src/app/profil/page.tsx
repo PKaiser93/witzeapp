@@ -122,6 +122,11 @@ export default function ProfilPage() {
         fetch(`${API_URL}/profile/warnings`, { headers: getAuthHeader() }),
       ]);
       if (res.status === 401) {
+        const errData = await res.json();
+        if (errData?.message === 'Bitte bestätige zuerst deine E-Mail-Adresse') {
+          router.push('/verify-pending');
+          return;
+        }
         localStorage.removeItem('token');
         router.push('/login');
         return;
