@@ -303,6 +303,7 @@ export class ProfileService {
       followers,
       following,
       notifications,
+      verifiedApplication,
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -312,11 +313,11 @@ export class ProfileService {
           email: true,
           bio: true,
           role: true,
-          isVerified: true,
-          rang: true,
+          isBlueVerified: true, // ← isVerified → isBlueVerified (wie im Schema)
           currentStreak: true,
           longestStreak: true,
           createdAt: true,
+          // rang fehlt hier – wird berechnet, nicht gespeichert
         },
       }),
       this.prisma.witz.findMany({
@@ -355,12 +356,29 @@ export class ProfileService {
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
+      this.prisma.verifiedApplication.findUnique({
+        where: { userId },
+        select: {
+          status: true,
+          message: true,
+          adminNote: true,
+          createdAt: true,
+        },
+      }),
     ]);
+
+    const likesReceived = await this.prisma.like.count({
+      where: { witz: { authorId: userId } },
+    });
 
     return {
       exportDatum: new Date().toISOString(),
       hinweis: 'Datenexport gemäß Art. 20 DSGVO',
-      profil: user,
+      profil: {
+        ...user,
+        rang: calculateRang(likesReceived),
+        verifiziertStatus: verifiedApplication ?? null,
+      },
       statistiken: {
         anzahlWitze: witze.length,
         anzahlKommentare: kommentare.length,
