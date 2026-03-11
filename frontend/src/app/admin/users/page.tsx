@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import BanModal from '@/components/BanModal';
@@ -34,12 +35,25 @@ const ROLE_COLORS: Record<string, string> = {
   USER: 'text-gray-300 bg-gray-500/20 border-gray-500/30',
 };
 
+const ROLE_EMOJI: Record<string, string> = {
+  ADMIN: '🛡️',
+  BETA: '🧪',
+  MODERATOR: '⚖️',
+  USER: '👤',
+};
+
 export default function AdminUsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [expandedUser, setExpandedUser] = useState<number | null>(null);
   const [warningsMap, setWarningsMap] = useState<Record<number, Warning[]>>({});
+  const [openActionsMenu, setOpenActionsMenu] = useState<number | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
   const [banModal, setBanModal] = useState<{
     userId: number;
     username: string;
@@ -56,6 +70,16 @@ export default function AdminUsersPage() {
     }
     loadUsers();
   }, [router]);
+
+  // Dropdown schließen bei Klick außerhalb
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if ((e.target as HTMLElement).closest('.actions-menu')) return;
+      setOpenActionsMenu(null);
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
 
   const loadUsers = async () => {
     const res = await fetch(`${API_URL}/admin/users`, {
@@ -115,13 +139,20 @@ export default function AdminUsersPage() {
     if (res.ok) setWarnModal(null);
   };
 
-  const loadWarnings = async (userId: number) => {
-    const res = await fetch(`${API_URL}/admin/users/${userId}/warnings`, {
-      headers: getAuthHeader(),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setWarningsMap((prev) => ({ ...prev, [userId]: data }));
+  const toggleExpand = async (userId: number) => {
+    if (expandedUser === userId) {
+      setExpandedUser(null);
+      return;
+    }
+    setExpandedUser(userId);
+    if (!warningsMap[userId]) {
+      const res = await fetch(`${API_URL}/admin/users/${userId}/warnings`, {
+        headers: getAuthHeader(),
+      });
+      if (res.ok) {
+        const data = await res.json(); // <--- erst awaiten
+        setWarningsMap((prev) => ({ ...prev, [userId]: data })); // <--- dann setzen
+      }
     }
   };
 
@@ -146,18 +177,21 @@ export default function AdminUsersPage() {
       u.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const bannedCount = users.filter((u) => u.ban?.active).length;
+  const adminCount = users.filter((u) => u.role === 'ADMIN').length;
+
   return (
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6 md:p-8">
-          <div className="flex items-center justify-between">
+        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-black text-white mb-1">
+              <h1 className="text-2xl font-black text-white">
                 👤 User-Verwaltung
               </h1>
-              <p className="text-gray-400 text-sm">
-                {users.length} registrierte User
+              <p className="text-gray-500 text-sm mt-0.5">
+                Alle registrierten Accounts verwalten
               </p>
             </div>
             <button
@@ -167,6 +201,36 @@ export default function AdminUsersPage() {
               ← Dashboard
             </button>
           </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              {
+                label: 'Gesamt',
+                value: users.length,
+                color: 'text-white',
+                bg: 'bg-gray-800/50',
+              },
+              {
+                label: 'Gesperrt',
+                value: bannedCount,
+                color: 'text-orange-300',
+                bg: 'bg-orange-500/10 border-orange-500/20',
+              },
+              {
+                label: 'Admins',
+                value: adminCount,
+                color: 'text-red-300',
+                bg: 'bg-red-500/10 border-red-500/20',
+              },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className={`${s.bg} border border-gray-700/30 rounded-2xl px-4 py-3 text-center`}
+              >
+                <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Suche */}
@@ -175,7 +239,7 @@ export default function AdminUsersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="User suchen..."
+            placeholder="Username oder E-Mail suchen..."
             className="flex-1 bg-transparent text-white placeholder-gray-500 focus:outline-none text-sm"
           />
           {search && (
@@ -188,160 +252,198 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        {/* User Liste */}
-        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
+        {/* Tabelle */}
+        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl">
+          <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-gray-800/50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="col-span-4">User</div>
+            <div className="col-span-2 text-center">Rolle</div>
+            <div className="col-span-2 text-center">Aktivität</div>
+            <div className="col-span-2 text-center">Status</div>
+            <div className="col-span-2 text-right">Aktionen</div>
+          </div>
+
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-16">
               <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
             </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 text-sm">
+              Keine User gefunden
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y divide-gray-800/50">
               {filtered.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex flex-col gap-3 p-4 bg-gray-800/50 rounded-2xl border border-gray-700/50"
-                >
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {/* Avatar */}
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-sm font-bold">
+                <div key={u.id}>
+                  <div
+                    className="grid grid-cols-12 gap-3 px-5 py-4 hover:bg-gray-800/30 transition-all items-center cursor-pointer"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('.actions-menu'))
+                        return;
+                      toggleExpand(u.id);
+                    }}
+                  >
+                    {/* User */}
+                    <div className="col-span-4 flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-sm font-bold">
                         {u.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-white text-sm font-semibold truncate">
+                          @{u.username}
+                        </p>
+                        <p className="text-gray-500 text-xs truncate">
+                          {u.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Rolle */}
+                    <div className="col-span-2 flex justify-center">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium border ${ROLE_COLORS[u.role] ?? ROLE_COLORS.USER}`}
+                      >
+                        {ROLE_EMOJI[u.role]} {u.role}
                       </span>
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-white text-sm font-semibold">
-                          @{u.username}
-                        </p>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium border ${ROLE_COLORS[u.role] ?? ROLE_COLORS.USER}`}
-                        >
-                          {u.role}
-                        </span>
-                        {u.ban?.active && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-300 border border-orange-500/30">
-                            🔨 Gebannt
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-gray-500 text-xs mt-0.5">
-                        {u.email} • {u._count.witze} Witze • {u._count.comments}{' '}
-                        Kommentare
+                    {/* Aktivität */}
+                    <div className="col-span-2 text-center">
+                      <p className="text-white text-sm font-semibold">
+                        {u._count.witze}
                       </p>
-                      {u.ban?.active && (
-                        <p className="text-orange-400 text-xs mt-0.5">
-                          bis{' '}
-                          {u.ban.expiresAt
-                            ? new Date(u.ban.expiresAt).toLocaleDateString(
-                                'de-DE'
-                              )
-                            : 'permanent'}{' '}
-                          – {u.ban.reason}
-                        </p>
+                      <p className="text-gray-500 text-xs">Witze</p>
+                    </div>
+
+                    {/* Status */}
+                    <div className="col-span-2 flex justify-center">
+                      {u.ban?.active ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                          🔨 Gebannt
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30">
+                          ✓ Aktiv
+                        </span>
                       )}
                     </div>
 
-                    {/* Aktionen */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <select
-                        value={u.role}
-                        onChange={(e) => updateRole(u.id, e.target.value)}
-                        className="bg-gray-700/50 border border-gray-600/50 text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none"
-                      >
-                        <option value="USER">USER</option>
-                        <option value="BETA">BETA</option>
-                        <option value="MODERATOR">MODERATOR</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </select>
-
+                    {/* Aktionen Button */}
+                    <div
+                      className="col-span-2 flex justify-end actions-menu"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
-                        onClick={() =>
-                          setWarnModal({ userId: u.id, username: u.username })
-                        }
-                        className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-300 text-xs rounded-xl transition-all"
-                        title="Verwarnen"
-                      >
-                        ⚠️
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          warningsMap[u.id] !== undefined
-                            ? setWarningsMap((prev) => {
-                                const n = { ...prev };
-                                delete n[u.id];
-                                return n;
-                              })
-                            : loadWarnings(u.id)
-                        }
-                        className="px-3 py-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 text-yellow-400 text-xs rounded-xl transition-all"
-                      >
-                        📋 {warningsMap[u.id]?.length ?? '?'}
-                      </button>
-
-                      {u.ban?.active ? (
-                        <button
-                          onClick={() => unbanUser(u.id)}
-                          className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-300 text-xs rounded-xl transition-all"
-                        >
-                          🔓
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            setBanModal({ userId: u.id, username: u.username })
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (openActionsMenu === u.id) {
+                            setOpenActionsMenu(null);
+                            setDropdownPos(null);
+                          } else {
+                            const rect = (
+                              e.currentTarget as HTMLElement
+                            ).getBoundingClientRect();
+                            setDropdownPos({
+                              top: rect.bottom + 4,
+                              right: window.innerWidth - rect.right,
+                            });
+                            setOpenActionsMenu(u.id);
                           }
-                          className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-300 text-xs rounded-xl transition-all"
-                        >
-                          🔨
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => deleteUser(u.id, u.username)}
-                        className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
+                        }}
+                        className="px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl text-xs font-medium transition-all"
                       >
-                        🗑️
+                        ⚙️ Aktionen ▾
                       </button>
                     </div>
                   </div>
 
-                  {/* Verwarnungen */}
-                  {warningsMap[u.id] && warningsMap[u.id].length === 0 && (
-                    <p className="text-gray-500 text-xs text-center py-1">
-                      Keine Verwarnungen
-                    </p>
-                  )}
-                  {warningsMap[u.id]?.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t border-gray-700/50">
-                      {warningsMap[u.id].map((w) => (
-                        <div
-                          key={w.id}
-                          className="flex items-center justify-between px-3 py-2 bg-yellow-500/10 rounded-xl border border-yellow-500/20"
-                        >
-                          <div>
-                            <p className="text-yellow-200 text-xs font-medium">
-                              {w.reason}
+                  {/* Expandierter Bereich */}
+                  {expandedUser === u.id && (
+                    <div className="px-5 pb-4 bg-gray-800/20 border-t border-gray-800/50">
+                      <div className="pt-4 space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
+                            <p className="text-white font-bold">
+                              {u._count.witze}
+                            </p>
+                            <p className="text-gray-500 text-xs">Witze</p>
+                          </div>
+                          <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
+                            <p className="text-white font-bold">
+                              {u._count.comments}
+                            </p>
+                            <p className="text-gray-500 text-xs">Kommentare</p>
+                          </div>
+                          <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
+                            <p className="text-white font-bold">
+                              {warningsMap[u.id]?.length ?? '...'}
                             </p>
                             <p className="text-gray-500 text-xs">
-                              {new Date(w.createdAt).toLocaleString('de-DE', {
-                                day: 'numeric',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              Verwarnungen
                             </p>
                           </div>
-                          <button
-                            onClick={() => deleteWarning(u.id, w.id)}
-                            className="text-red-400 hover:text-red-300 p-1 rounded transition-all text-xs"
-                          >
-                            🗑️
-                          </button>
                         </div>
-                      ))}
+
+                        {u.ban?.active && (
+                          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl px-4 py-3">
+                            <p className="text-orange-300 text-sm font-semibold mb-0.5">
+                              🔨 Aktiver Ban
+                            </p>
+                            <p className="text-orange-400/70 text-xs">
+                              Grund: {u.ban.reason} • bis{' '}
+                              {u.ban.expiresAt
+                                ? new Date(u.ban.expiresAt).toLocaleDateString(
+                                    'de-DE'
+                                  )
+                                : 'permanent'}
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                            Verwarnungen
+                          </p>
+                          {!warningsMap[u.id] ? (
+                            <p className="text-gray-600 text-xs">Lädt...</p>
+                          ) : warningsMap[u.id].length === 0 ? (
+                            <p className="text-gray-600 text-xs">
+                              Keine Verwarnungen
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {warningsMap[u.id].map((w) => (
+                                <div
+                                  key={w.id}
+                                  className="flex items-center justify-between px-3 py-2 bg-yellow-500/10 rounded-xl border border-yellow-500/20"
+                                >
+                                  <div>
+                                    <p className="text-yellow-200 text-xs font-medium">
+                                      {w.reason}
+                                    </p>
+                                    <p className="text-gray-500 text-xs">
+                                      {new Date(w.createdAt).toLocaleString(
+                                        'de-DE',
+                                        {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        }
+                                      )}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => deleteWarning(u.id, w.id)}
+                                    className="text-red-400 hover:text-red-300 p-1 rounded transition-all text-xs"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -350,6 +452,92 @@ export default function AdminUsersPage() {
           )}
         </div>
       </div>
+
+      {/* Dropdown Portal */}
+      {openActionsMenu !== null &&
+        dropdownPos &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="actions-menu fixed bg-gray-900 border border-gray-700/50 rounded-2xl shadow-2xl w-48 py-1 z-[9999]"
+            style={{ top: dropdownPos.top, right: dropdownPos.right }}
+          >
+            {(() => {
+              const u = users.find((u) => u.id === openActionsMenu);
+              if (!u) return null;
+              return (
+                <>
+                  <div className="px-3 py-2 border-b border-gray-800/50">
+                    <p className="text-gray-500 text-xs mb-1.5">Rolle ändern</p>
+                    <select
+                      value={u.role}
+                      onChange={(e) => {
+                        updateRole(u.id, e.target.value);
+                        setOpenActionsMenu(null);
+                      }}
+                      className="w-full bg-gray-800 border border-gray-700/50 text-white text-xs rounded-lg px-2 py-1.5 focus:outline-none"
+                    >
+                      <option value="USER">👤 USER</option>
+                      <option value="BETA">🧪 BETA</option>
+                      <option value="MODERATOR">⚖️ MODERATOR</option>
+                      <option value="ADMIN">🛡️ ADMIN</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setWarnModal({ userId: u.id, username: u.username });
+                      setOpenActionsMenu(null);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-yellow-300 hover:bg-gray-800/50 text-sm transition-all"
+                  >
+                    ⚠️ Verwarnen
+                  </button>
+                  {u.ban?.active ? (
+                    <button
+                      onClick={() => {
+                        unbanUser(u.id);
+                        setOpenActionsMenu(null);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-green-300 hover:bg-gray-800/50 text-sm transition-all"
+                    >
+                      🔓 Entbannen
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setBanModal({ userId: u.id, username: u.username });
+                        setOpenActionsMenu(null);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-orange-300 hover:bg-gray-800/50 text-sm transition-all"
+                    >
+                      🔨 Bannen
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      router.push(`/profil/${u.username}`);
+                      setOpenActionsMenu(null);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-indigo-300 hover:bg-gray-800/50 text-sm transition-all"
+                  >
+                    👤 Profil ansehen
+                  </button>
+                  <hr className="border-gray-800/50 my-1" />
+                  <button
+                    onClick={() => {
+                      deleteUser(u.id, u.username);
+                      setOpenActionsMenu(null);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-red-400 hover:bg-gray-800/50 text-sm transition-all"
+                  >
+                    🗑️ Löschen
+                  </button>
+                </>
+              );
+            })()}
+          </div>,
+          document.body
+        )}
 
       {banModal && (
         <BanModal
