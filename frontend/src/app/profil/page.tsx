@@ -39,6 +39,7 @@ interface ProfileData {
   bio: string;
   currentStreak: number;
   longestStreak: number;
+  isBlueVerified: boolean; // ← NEU
 }
 
 interface Warning {
@@ -95,6 +96,9 @@ export default function ProfilPage() {
   const [editingBio, setEditingBio] = useState(false);
   const [bioText, setBioText] = useState('');
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [application, setApplication] = useState<any>(null);
+  const [applying, setApplying] = useState(false);
+  const [applyMessage, setApplyMessage] = useState('');
   const [followCounts, setFollowCounts] = useState({
     followers: 0,
     following: 0,
@@ -147,9 +151,16 @@ export default function ProfilPage() {
           .catch(() => {});
       }
       if (warningsRes.ok) setWarnings(await warningsRes.json());
+
       fetch(`${API_URL}/profile/badges`, { headers: getAuthHeader() })
         .then((r) => r.json())
         .then(setBadges)
+        .catch(() => {});
+
+      // Verified-Bewerbung laden
+      fetch(`${API_URL}/verified-application/me`, { headers: getAuthHeader() })
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setApplication)
         .catch(() => {});
     } finally {
       setLoading(false);
@@ -165,6 +176,7 @@ export default function ProfilPage() {
     loadProfile();
   }, [loadProfile, router]);
 
+  // REST der Funktionen unverändert...
   const saveEdit = async () => {
     if (!editingId || !editText.trim()) return;
     const res = await fetch(`${API_URL}/profile/witz/${editingId}`, {
@@ -207,7 +219,7 @@ export default function ProfilPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `witzeapp-export.json`;
+      a.download = 'witzeapp-export.json';
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -221,20 +233,14 @@ export default function ProfilPage() {
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Profil-Card */}
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl overflow-hidden">
-          {/* Cover */}
           <div className="h-32 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600" />
-
-          {/* Avatar + Aktionen */}
           <div className="px-6 pb-6">
             <div className="flex items-end justify-between -mt-10 mb-4">
-              {/* Avatar */}
               <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl border-4 border-gray-900 flex items-center justify-center shadow-xl">
                 <span className="text-3xl font-black text-white">
                   {username.charAt(0).toUpperCase()}
                 </span>
               </div>
-
-              {/* Einstellungen-Dropdown */}
               <div className="relative mb-1">
                 <button
                   onClick={() => setSettingsOpen((p) => !p)}
@@ -243,7 +249,6 @@ export default function ProfilPage() {
                   ⚙️ Einstellungen
                   <span className="text-xs text-gray-500">▾</span>
                 </button>
-
                 {settingsOpen && (
                   <div className="absolute right-0 top-11 bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl w-52 py-1 z-50">
                     <button
@@ -295,6 +300,22 @@ export default function ProfilPage() {
             {/* Name + Rolle */}
             <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h1 className="text-2xl font-black text-white">@{username}</h1>
+              {/* Blauer Haken neben Username */}
+              {profile?.isBlueVerified && (
+                <svg
+                  title="Verifizierter Account"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="w-6 h-6 text-blue-500 inline-block"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.491 4.491 0 01-3.497-1.307 4.491 4.491 0 01-1.307-3.497A4.49 4.49 0 012.25 12a4.49 4.49 0 011.549-3.397 4.491 4.491 0 011.307-3.497 4.491 4.491 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
               <span
                 className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${badge.color}`}
               >
@@ -444,6 +465,104 @@ export default function ProfilPage() {
         {/* Badges */}
         <BadgeList badges={badges} />
 
+        {/* Verified Badge Bewerbung */}
+        {profile?.isBlueVerified ? (
+          <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl">
+            <span className="text-2xl">✅</span>
+            <div>
+              <p className="font-bold text-blue-300">Verifizierter Account</p>
+              <p className="text-sm text-blue-400/70">
+                Du hast den blauen Haken erhalten
+              </p>
+            </div>
+          </div>
+        ) : badges.some((b) => b.key === 'meister') ? (
+          <div className="p-4 bg-gray-900/80 border border-gray-800/50 rounded-2xl">
+            <h3 className="font-bold text-white mb-2">🔵 Verified werden</h3>
+            {!application && (
+              <>
+                <p className="text-sm text-gray-400 mb-3">
+                  Als Meister kannst du dich für den blauen Haken bewerben.
+                </p>
+                <textarea
+                  value={applyMessage}
+                  onChange={(e) => setApplyMessage(e.target.value)}
+                  placeholder="Warum möchtest du verifiziert werden? (optional)"
+                  className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl p-3 text-sm text-white resize-none placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 mb-2"
+                  rows={3}
+                />
+                <button
+                  onClick={async () => {
+                    setApplying(true);
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`${API_URL}/verified-application`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ message: applyMessage }),
+                    });
+                    if (res.ok) setApplication(await res.json());
+                    setApplying(false);
+                  }}
+                  disabled={applying}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
+                >
+                  {applying ? 'Wird eingereicht...' : 'Jetzt bewerben'}
+                </button>
+              </>
+            )}
+            {application?.status === 'PENDING' && (
+              <div className="flex items-center gap-3">
+                <span className="text-xl">⏳</span>
+                <div className="flex-1">
+                  <p className="font-medium text-yellow-300">
+                    Bewerbung ausstehend
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Eingereicht am{' '}
+                    {new Date(application.createdAt).toLocaleDateString(
+                      'de-DE'
+                    )}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const token = localStorage.getItem('token');
+                    await fetch(`${API_URL}/verified-application/me`, {
+                      method: 'DELETE',
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    setApplication(null);
+                  }}
+                  className="text-red-400 text-sm hover:underline"
+                >
+                  Zurückziehen
+                </button>
+              </div>
+            )}
+            {application?.status === 'REJECTED' && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                <p className="font-medium text-red-300">
+                  ❌ Bewerbung abgelehnt
+                </p>
+                {application.adminNote && (
+                  <p className="text-sm text-red-400/80 mt-1">
+                    Grund: {application.adminNote}
+                  </p>
+                )}
+                <button
+                  onClick={() => setApplication(null)}
+                  className="mt-2 text-sm text-blue-400 hover:underline"
+                >
+                  Erneut bewerben
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
+
         {/* Tab: Witze */}
         {activeTab === 'witze' && (
           <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6">
@@ -456,13 +575,11 @@ export default function ProfilPage() {
                 ➕ Neuer Witz
               </button>
             </div>
-
             {loading && (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
               </div>
             )}
-
             {!loading && (profile?.witze.length ?? 0) === 0 && (
               <div className="text-center py-12">
                 <span className="text-5xl block mb-4">📝</span>
@@ -475,7 +592,6 @@ export default function ProfilPage() {
                 </button>
               </div>
             )}
-
             <div className="space-y-3">
               {profile?.witze.map((w) => (
                 <div

@@ -1,11 +1,12 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import BlueCheckmark from '@/components/BlueCheckmark';
 
 interface Comment {
   id: number;
   text: string;
   createdAt: string;
-  author: { username: string };
+  author: { username: string; isBlueVerified?: boolean };
 }
 
 interface Props {
@@ -73,8 +74,9 @@ export default function CommentSection({
           </div>
           <div className="flex-1 bg-gray-800/50 rounded-xl px-3 py-2">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-white text-xs font-semibold">
+              <span className="flex items-center gap-1 text-white text-xs font-semibold">
                 @{c.author.username}
+                {c.author.isBlueVerified && <BlueCheckmark size={3} />}
               </span>
               <span className="text-gray-600 text-xs">
                 {new Date(c.createdAt).toLocaleString('de-DE', {

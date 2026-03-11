@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import CommentSection from './CommentSection';
+import BlueCheckmark from '@/components/BlueCheckmark';
 
 interface Kategorie {
   name: string;
@@ -18,7 +19,7 @@ interface Witz {
   likes: number;
   userLiked: boolean;
   createdAt: string;
-  author?: { username: string };
+  author?: { username: string; isBlueVerified?: boolean };
   kategorie?: Kategorie;
   commentCount?: number;
 }
@@ -76,9 +77,10 @@ export default function WitzCard({
               e.stopPropagation();
               router.push(`/profil/${witz.author?.username}`);
             }}
-            className="text-white text-sm font-semibold cursor-pointer hover:text-indigo-400 transition-colors"
+            className="flex items-center gap-1 text-white text-sm font-semibold cursor-pointer hover:text-indigo-400 transition-colors"
           >
             @{witz.author?.username ?? 'Gast'}
+            {witz.author?.isBlueVerified && <BlueCheckmark />}
           </p>
           <p className="text-gray-500 text-xs">
             {new Date(witz.createdAt).toLocaleDateString('de-DE', {

@@ -1,10 +1,11 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import BlueCheckmark from '@/components/BlueCheckmark';
 
 interface WitzOfTheDay {
   id: number;
   text: string;
-  author?: { username: string };
+  author?: { username: string; isBlueVerified?: boolean };
   kategorie?: { name: string; emoji: string };
   _count: { likeLikes: number };
 }
@@ -30,8 +31,9 @@ export default function WitzOfTheDayBanner({ witz }: { witz: WitzOfTheDay }) {
               {(witz.author?.username ?? 'G').charAt(0).toUpperCase()}
             </span>
           </div>
-          <span className="text-gray-400 text-sm">
+          <span className="flex items-center gap-1 text-gray-400 text-sm">
             @{witz.author?.username ?? 'Gast'}
+            {witz.author?.isBlueVerified && <BlueCheckmark />}
           </span>
           {witz.kategorie && (
             <span className="text-indigo-400 text-xs">

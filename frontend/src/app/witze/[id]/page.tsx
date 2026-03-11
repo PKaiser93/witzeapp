@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import AppLayout from '@/components/AppLayout';
+import BlueCheckmark from '@/components/BlueCheckmark';
 
 interface Comment {
   id: number;
@@ -18,7 +19,7 @@ interface WitzDetail {
   userLiked: boolean;
   createdAt: string;
   isEdited: boolean;
-  author: { username: string };
+  author: { username: string; isBlueVerified?: boolean };
   kategorie?: { name: string; emoji: string };
   likerNames?: string[];
   comments?: Comment[];
@@ -198,8 +199,9 @@ export default function WitzDetail() {
               </span>
             </div>
             <div>
-              <p className="text-white text-sm font-semibold">
+              <p className="flex items-center gap-1 text-white text-sm font-semibold">
                 @{witz.author.username}
+                {witz.author.isBlueVerified && <BlueCheckmark />}
               </p>
               <p className="text-gray-500 text-xs">
                 {new Date(witz.createdAt).toLocaleString('de-DE', {

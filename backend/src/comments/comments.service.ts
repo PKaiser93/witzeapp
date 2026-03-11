@@ -12,7 +12,7 @@ export class CommentsService {
   async findByWitz(witzId: number) {
     return this.prisma.comment.findMany({
       where: { witzId },
-      include: { author: { select: { username: true } } },
+      include: { author: { select: { username: true, isBlueVerified: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }

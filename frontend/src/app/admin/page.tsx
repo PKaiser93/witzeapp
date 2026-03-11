@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [reportCount, setReportCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [pendingVerifiedCount, setPendingVerifiedCount] = useState(0);
 
   useEffect(() => {
     if (localStorage.getItem('role') !== 'ADMIN') {
@@ -29,14 +30,21 @@ export default function AdminDashboard() {
       return;
     }
     const load = async () => {
-      const [statsRes, reportsRes] = await Promise.all([
+      const [statsRes, reportsRes, verifiedRes] = await Promise.all([
         fetch(`${API_URL}/admin/stats`, { headers: getAuthHeader() }),
         fetch(`${API_URL}/admin/reports`, { headers: getAuthHeader() }),
+        fetch(`${API_URL}/verified-application/admin?status=PENDING`, {
+          headers: getAuthHeader(),
+        }),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (reportsRes.ok) {
         const data = await reportsRes.json();
         setReportCount(data.length);
+      }
+      if (verifiedRes.ok) {
+        const data = await verifiedRes.json();
+        setPendingVerifiedCount(data.length);
       }
       setLoading(false);
     };
@@ -56,6 +64,13 @@ export default function AdminDashboard() {
       path: '/admin/reports',
       color: 'from-red-600 to-orange-600',
       badge: reportCount,
+    },
+    {
+      emoji: '🔵',
+      label: 'Verified-Bewerbungen',
+      path: '/admin/verified',
+      color: 'from-blue-500 to-cyan-500',
+      badge: pendingVerifiedCount,
     },
     {
       emoji: '🔧',

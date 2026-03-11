@@ -36,6 +36,9 @@ model User {
   refreshTokens RefreshToken[]
   createdAt     DateTime  @default(now())
   updatedAt        DateTime @updatedAt
+  isBlueVerified  Boolean  @default(false)
+  verifiedApplication     VerifiedApplication?
+  reviewedApplications    VerifiedApplication[] @relation("ReviewedBy")
 }
 
 model VerificationToken {
@@ -206,6 +209,27 @@ model BlacklistedToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
+
+model VerifiedApplication {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique  // Nur eine aktive Bewerbung pro User
+  status      ApplicationStatus @default(PENDING)
+  message     String?           // Optionaler Bewerbungstext vom User
+  adminNote   String?           // Notiz vom Admin bei Ablehnung
+  reviewedBy  Int?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin       User?     @relation("ReviewedBy", fields: [reviewedBy], references: [id])
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 
 enum Role {
   USER

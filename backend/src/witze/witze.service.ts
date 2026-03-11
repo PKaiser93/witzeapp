@@ -15,7 +15,7 @@ export interface WitzResponse {
   likes: number;
   createdAt: Date;
   userLiked: boolean;
-  author?: { username: string } | null; // ← | null ergänzen
+  author?: { username: string; isBlueVerified?: boolean } | null;
   kategorie?: { name: string; emoji: string } | null; // ← | null ergänzen
   commentCount?: number;
 }
@@ -63,7 +63,7 @@ export class WitzeService {
         kategorieId: true,
         likes: true,
         createdAt: true,
-        author: { select: { username: true } },
+        author: { select: { username: true, isBlueVerified: true } },
         kategorie: { select: { name: true, emoji: true } },
         _count: { select: { likeLikes: true, comments: true } },
         likeLikes: userId
@@ -97,7 +97,7 @@ export class WitzeService {
     return this.prisma.witz.findFirst({
       skip,
       include: {
-        author: { select: { username: true } },
+        author: { select: { username: true, isBlueVerified: true } },
         kategorie: { select: { name: true, emoji: true } },
         _count: { select: { likeLikes: true } },
       },
@@ -182,7 +182,9 @@ export class WitzeService {
     const witz = await this.prisma.witz.findUnique({
       where: { id },
       include: {
-        author: { select: { username: true, email: true } },
+        author: {
+          select: { username: true, email: true, isBlueVerified: true },
+        },
         kategorie: true,
         _count: { select: { likeLikes: true } },
         likeLikes: {

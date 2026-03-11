@@ -45,6 +45,12 @@ export const BADGE_DEFINITIONS = [
     label: 'Kommentator',
     description: '10 Kommentare',
   },
+  {
+    key: 'meister',
+    emoji: '🎓',
+    label: 'Meister',
+    description: '50 Witze gepostet und 50 Likes erhalten',
+  },
 ];
 
 @Injectable()
@@ -87,6 +93,8 @@ export class BadgesService {
     if (!existing.has('social') && followerCount >= 10) toAward.push('social');
     if (!existing.has('commenter') && commentCount >= 10)
       toAward.push('commenter');
+    if (!existing.has('meister') && witzeCount >= 50 && likesReceived >= 50)
+      toAward.push('meister');
 
     if (toAward.length > 0) {
       await this.prisma.badge.createMany({

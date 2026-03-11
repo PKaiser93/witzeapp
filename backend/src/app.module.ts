@@ -16,6 +16,7 @@ import { envValidationSchema } from './config/env.validation';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
 import { MailModule } from './mail/mail.module';
+import { VerifiedApplicationModule } from './verified-application/verified-application.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { MailModule } from './mail/mail.module';
     NotificationsModule,
     FollowModule,
     MailModule,
+    VerifiedApplicationModule,
   ],
   providers: [
     {

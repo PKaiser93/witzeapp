@@ -28,6 +28,7 @@ export interface ProfileResponse {
   id: number;
   currentStreak: number;
   longestStreak: number;
+  isBlueVerified: boolean;
 }
 
 function calculateRang(likesReceived: number): string {
@@ -84,6 +85,7 @@ export class ProfileService {
           bio: true,
           currentStreak: true,
           longestStreak: true,
+          isBlueVerified: true,
         },
       }),
     ]);
@@ -106,6 +108,7 @@ export class ProfileService {
       bio: user?.bio ?? '',
       currentStreak: user?.currentStreak ?? 0,
       longestStreak: user?.longestStreak ?? 0,
+      isBlueVerified: user?.isBlueVerified ?? false,
     };
   }
 
@@ -246,6 +249,7 @@ export class ProfileService {
         createdAt: true,
         currentStreak: true,
         longestStreak: true,
+        isBlueVerified: true,
         witze: {
           include: {
             kategorie: { select: { name: true, emoji: true } },
@@ -276,6 +280,7 @@ export class ProfileService {
       currentStreak: user.currentStreak,
       longestStreak: user.longestStreak,
       likesReceived,
+      isBlueVerified: user.isBlueVerified,
       witze: user.witze.map((w) => ({
         id: w.id,
         text: w.text,
