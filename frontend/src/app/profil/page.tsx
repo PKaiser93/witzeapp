@@ -434,37 +434,6 @@ export default function ProfilPage() {
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('witze')}
-            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-              activeTab === 'witze'
-                ? 'bg-indigo-600/80 text-white border-indigo-500/50'
-                : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50'
-            }`}
-          >
-            📝 Meine Witze ({profile?.witze.length ?? 0})
-          </button>
-          {warnings.length > 0 && (
-            <button
-              onClick={() => setActiveTab('verwarnungen')}
-              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                activeTab === 'verwarnungen'
-                  ? 'bg-yellow-600/80 text-white border-yellow-500/50'
-                  : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50'
-              }`}
-            >
-              ⚠️ Verwarnungen ({warnings.length})
-            </button>
-          )}
-        </div>
-
-        {error && <p className="text-red-400 text-sm px-1">{error}</p>}
-
-        {/* Badges */}
-        <BadgeList badges={badges} />
-
         {/* Verified Badge Bewerbung */}
         {profile?.isBlueVerified ? (
           <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl">
@@ -562,6 +531,37 @@ export default function ProfilPage() {
             )}
           </div>
         ) : null}
+
+        {/* Tabs */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('witze')}
+            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+              activeTab === 'witze'
+                ? 'bg-indigo-600/80 text-white border-indigo-500/50'
+                : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50'
+            }`}
+          >
+            📝 Meine Witze ({profile?.witze.length ?? 0})
+          </button>
+          {warnings.length > 0 && (
+            <button
+              onClick={() => setActiveTab('verwarnungen')}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                activeTab === 'verwarnungen'
+                  ? 'bg-yellow-600/80 text-white border-yellow-500/50'
+                  : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50'
+              }`}
+            >
+              ⚠️ Verwarnungen ({warnings.length})
+            </button>
+          )}
+        </div>
+
+        {error && <p className="text-red-400 text-sm px-1">{error}</p>}
+
+        {/* Badges */}
+        <BadgeList badges={badges} />
 
         {/* Tab: Witze */}
         {activeTab === 'witze' && (
