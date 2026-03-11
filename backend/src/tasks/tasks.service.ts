@@ -61,4 +61,27 @@ export class TasksService {
     });
     this.logger.log(`🗑️ Blacklist Cleanup: ${deleted.count} Tokens gelöscht`);
   }
+
+  // Täglich um 04:15 Uhr – abgelaufene Verifizierungs-Tokens löschen
+  @Cron('15 4 * * *')
+  async cleanupVerificationTokens() {
+    const deleted = await this.prisma.verificationToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    this.logger.log(
+      `📧 Verification Token Cleanup: ${deleted.count} Tokens gelöscht`,
+    );
+  }
+
+// Täglich um 04:20 Uhr – abgelaufene Password-Reset-Tokens löschen
+  @Cron('20 4 * * *')
+  async cleanupPasswordResetTokens() {
+    const deleted = await this.prisma.passwordResetToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    this.logger.log(
+      `🔑 Password Reset Token Cleanup: ${deleted.count} Tokens gelöscht`,
+    );
+  }
+
 }
