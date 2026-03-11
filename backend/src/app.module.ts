@@ -15,7 +15,6 @@ import { FollowModule } from './follow/follow.module';
 import { envValidationSchema } from './config/env.validation';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
-import { MailerModule } from '@nestjs-modules/mailer';
 import { MailModule } from './mail/mail.module';
 
 @Module({
@@ -29,22 +28,6 @@ import { MailModule } from './mail/mail.module';
       },
     }),
     ScheduleModule.forRoot(),
-    MailerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        transport: {
-          host: config.get('MAIL_HOST'),
-          port: config.get<number>('MAIL_PORT'),
-          auth: {
-            user: config.get('MAIL_USER'),
-            pass: config.get('MAIL_PASS'),
-          },
-        },
-        defaults: {
-          from: config.get('MAIL_FROM'),
-        },
-      }),
-    }),
     ThrottlerModule.forRoot([
       {
         name: 'short',
