@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import BlueCheckmark from '@/components/BlueCheckmark';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -47,7 +48,7 @@ export default function LeaderboardPage() {
       // Eigene User-ID laden für Highlighting
       if (token) {
         try {
-          const meRes = await fetch(`${API_URL}/profile`, { headers });
+          const meRes = await fetchWithAuth(`${API_URL}/profile`);
           if (meRes.ok) {
             const me = await meRes.json();
             setCurrentUserId(me.id);
@@ -55,7 +56,7 @@ export default function LeaderboardPage() {
         } catch {}
       }
 
-      const res = await fetch(`${API_URL}/witze/leaderboard`, { headers });
+      const res = await fetchWithAuth(`${API_URL}/witze/leaderboard`);
       if (res.ok) {
         const data: LeaderboardEntry[] = await res.json();
         setEntries(data);

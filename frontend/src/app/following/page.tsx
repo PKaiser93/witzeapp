@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import BlueCheckmark from '@/components/BlueCheckmark';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -24,9 +25,7 @@ export default function FollowingPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { router.push('/login'); return; }
-    fetch(`${API_URL}/follow/feed/following`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetchWithAuth(`${API_URL}/follow/feed/following`)
         .then((res) => res.json())
         .then((data) => setWitze(data))
         .finally(() => setLoading(false));

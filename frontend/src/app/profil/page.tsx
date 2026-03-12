@@ -7,6 +7,7 @@ import DeleteAccountModal from '@/components/DeleteAccountModal';
 import ChangeUsernameModal from '@/components/ChangeUsernameModal';
 import { useAppConfig } from '@/context/AppConfigContext';
 import BadgeList from '@/components/BadgeList';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -107,12 +108,9 @@ export default function ProfilPage() {
 
   const saveBio = async () => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_URL}/profile/bio`, {
+    const res = await fetchWithAuth(`${API_URL}/profile/bio`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bio: bioText }),
     });
     if (res.ok) {
@@ -124,44 +122,30 @@ export default function ProfilPage() {
   const loadProfile = useCallback(async () => {
     try {
       const [res, warningsRes] = await Promise.all([
-        fetch(`${API_URL}/profile`, { headers: getAuthHeader() }),
-        fetch(`${API_URL}/profile/warnings`, { headers: getAuthHeader() }),
+        fetchWithAuth(`${API_URL}/profile`),
+        fetchWithAuth(`${API_URL}/profile/warnings`),
       ]);
-      if (res.status === 401) {
-        const errData = await res.json();
-        if (
-          errData?.message === 'Bitte bestätige zuerst deine E-Mail-Adresse'
-        ) {
-          router.push('/verify-pending');
-          return;
-        }
-        localStorage.removeItem('token');
-        router.push('/login');
-        return;
-      }
       if (res.ok) {
         const profileData = await res.json();
         setProfile(profileData);
         const token = localStorage.getItem('token');
-        fetch(`${API_URL}/follow/${profileData.id}/counts`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-          .then((r) => r.json())
-          .then(setFollowCounts)
-          .catch(() => {});
+        fetchWithAuth(`${API_URL}/follow/${profileData.id}/counts`)
+            .then((r) => r.json())
+            .then(setFollowCounts)
+            .catch(() => {});
       }
       if (warningsRes.ok) setWarnings(await warningsRes.json());
 
-      fetch(`${API_URL}/profile/badges`, { headers: getAuthHeader() })
-        .then((r) => r.json())
-        .then(setBadges)
-        .catch(() => {});
+      fetchWithAuth(`${API_URL}/profile/badges`)
+          .then((r) => r.json())
+          .then(setBadges)
+          .catch(() => {});
 
       // Verified-Bewerbung laden
-      fetch(`${API_URL}/verified-application/me`, { headers: getAuthHeader() })
-        .then((r) => (r.ok ? r.json() : null))
-        .then(setApplication)
-        .catch(() => {});
+      fetchWithAuth(`${API_URL}/verified-application/me`)
+          .then((r) => r.ok ? r.json() : null)
+          .then(setApplication)
+          .catch(() => {});
     } finally {
       setLoading(false);
     }
@@ -179,9 +163,9 @@ export default function ProfilPage() {
   // REST der Funktionen unverändert...
   const saveEdit = async () => {
     if (!editingId || !editText.trim()) return;
-    const res = await fetch(`${API_URL}/profile/witz/${editingId}`, {
+    const res = await fetchWithAuth(`${API_URL}/profile/witz/${editingId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: editText.trim() }),
     });
     if (!res.ok) {
@@ -196,9 +180,8 @@ export default function ProfilPage() {
 
   const deleteWitz = async (id: number) => {
     if (!confirm('Witz wirklich löschen?')) return;
-    const res = await fetch(`${API_URL}/profile/witz/${id}`, {
+    const res = await fetchWithAuth(`${API_URL}/profile/witz/${id}`, {
       method: 'DELETE',
-      headers: getAuthHeader(),
     });
     if (!res.ok) {
       setError('Fehler beim Löschen.');
@@ -211,9 +194,7 @@ export default function ProfilPage() {
 
   const exportData = async () => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_URL}/profile/export`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetchWithAuth(`${API_URL}/profile/export`);
     if (res.ok) {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -464,12 +445,9 @@ export default function ProfilPage() {
                   onClick={async () => {
                     setApplying(true);
                     const token = localStorage.getItem('token');
-                    const res = await fetch(`${API_URL}/verified-application`, {
+                    const res = await fetchWithAuth(`${API_URL}/verified-application`, {
                       method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                      },
+                      headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ message: applyMessage }),
                     });
                     if (res.ok) setApplication(await res.json());
@@ -499,9 +477,8 @@ export default function ProfilPage() {
                 <button
                   onClick={async () => {
                     const token = localStorage.getItem('token');
-                    await fetch(`${API_URL}/verified-application/me`, {
+                    await fetchWithAuth(`${API_URL}/verified-application/me`, {
                       method: 'DELETE',
-                      headers: { Authorization: `Bearer ${token}` },
                     });
                     setApplication(null);
                   }}

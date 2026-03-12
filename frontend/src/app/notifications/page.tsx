@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -65,18 +66,9 @@ export default function NotificationsPage() {
   }, []);
 
   const loadNotifications = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        localStorage.clear();
-        router.push('/login');
-        return;
-      }
+      const res = await fetchWithAuth(`${API_URL}/notifications`);
       if (res.ok) {
         const data: Notification[] = await res.json();
         setNotifications(data);
@@ -90,9 +82,8 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    await fetch(`${API_URL}/notifications/read-all`, {
+    await fetchWithAuth(`${API_URL}/notifications/read-all`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` },
     });
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);
@@ -102,9 +93,8 @@ export default function NotificationsPage() {
     const token = localStorage.getItem('token');
     if (!token) return;
     if (!notif.read) {
-      await fetch(`${API_URL}/notifications/${notif.id}/read`, {
+      await fetchWithAuth(`${API_URL}/notifications/${notif.id}/read`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications((prev) =>
         prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))

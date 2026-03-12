@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import {fetchWithAuth} from "@/lib/fetchWithAuth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -93,19 +94,15 @@ export default function PublicProfilePage() {
 
           // Follow-Status + Counts laden falls eingeloggt
           if (loggedIn && token) {
-            fetch(`${API_URL}/follow/${data.id}/status`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-              .then((r) => r.json())
-              .then((d) => setIsFollowing(d.following))
-              .catch(() => {});
+            fetchWithAuth(`${API_URL}/follow/${data.id}/status`)
+                .then((r) => r.json())
+                .then((d) => setIsFollowing(d.following))
+                .catch(() => {});
 
-            fetch(`${API_URL}/follow/${data.id}/counts`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-              .then((r) => r.json())
-              .then((d) => setFollowerCount(d.followers ?? 0))
-              .catch(() => {});
+            fetchWithAuth(`${API_URL}/follow/${data.id}/counts`)
+                .then((r) => r.json())
+                .then((d) => setFollowerCount(d.followers ?? 0))
+                .catch(() => {});
           }
         }
         if (badgesRes.ok) setBadges(await badgesRes.json());
@@ -123,9 +120,8 @@ export default function PublicProfilePage() {
     if (!profile) return;
     setFollowLoading(true);
     try {
-      const res = await fetch(`${API_URL}/follow/${profile.id}`, {
+      const res = await fetchWithAuth(`${API_URL}/follow/${profile.id}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
