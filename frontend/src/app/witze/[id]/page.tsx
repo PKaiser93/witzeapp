@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import BlueCheckmark from '@/components/BlueCheckmark';
+import ReportDialog from '@/components/ReportDialog';
 
 interface Comment {
   id: number;
@@ -38,6 +39,7 @@ export default function WitzDetail() {
   const [copied, setCopied] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
 
   const id = params?.id ? parseInt(params.id as string, 10) : 0;
 
@@ -69,8 +71,14 @@ export default function WitzDetail() {
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`${API_URL}/witze/${id}`, { headers });
-      if (res.status === 404) { setError('Witz nicht gefunden'); return; }
-      if (!res.ok) { setError('Fehler beim Laden. Versuche es erneut.'); return; }
+      if (res.status === 404) {
+        setError('Witz nicht gefunden');
+        return;
+      }
+      if (!res.ok) {
+        setError('Fehler beim Laden. Versuche es erneut.');
+        return;
+      }
       setWitz(await res.json());
     } catch {
       setError('Fehler beim Laden. Versuche es erneut.');
@@ -82,7 +90,10 @@ export default function WitzDetail() {
   const toggleLike = useCallback(async () => {
     if (!witz) return;
     const token = localStorage.getItem('token');
-    if (!token) { router.push('/login'); return; }
+    if (!token) {
+      router.push('/login');
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/witze/${id}/like`, {
         method: 'PATCH',
@@ -98,14 +109,23 @@ export default function WitzDetail() {
   const postComment = async () => {
     if (!commentText.trim()) return;
     const token = localStorage.getItem('token');
-    if (!token) { router.push('/login'); return; }
+    if (!token) {
+      router.push('/login');
+      return;
+    }
     setCommentLoading(true);
     const res = await fetch(`${API_URL}/witze/${id}/comments`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ text: commentText.trim() }),
     });
-    if (res.ok) { setCommentText(''); await loadComments(); }
+    if (res.ok) {
+      setCommentText('');
+      await loadComments();
+    }
     setCommentLoading(false);
   };
 
@@ -126,246 +146,280 @@ export default function WitzDetail() {
     });
   };
 
-  useEffect(() => { loadWitz(); loadComments(); }, [loadWitz, loadComments]);
+  useEffect(() => {
+    loadWitz();
+    loadComments();
+  }, [loadWitz, loadComments]);
 
   if (loading) {
     return (
-        <AppLayout>
-          <div className="max-w-2xl mx-auto py-20 flex flex-col items-center gap-4">
-            <div className="animate-spin w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
-            <p className="text-gray-400">Witz wird geladen...</p>
-          </div>
-        </AppLayout>
+      <AppLayout>
+        <div className="max-w-2xl mx-auto py-20 flex flex-col items-center gap-4">
+          <div className="animate-spin w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
+          <p className="text-gray-400">Witz wird geladen...</p>
+        </div>
+      </AppLayout>
     );
   }
 
   if (error || !witz) {
     return (
-        <AppLayout>
-          <div className="max-w-2xl mx-auto py-20 text-center">
-            <span className="text-6xl block mb-6">😢</span>
-            <h1 className="text-2xl font-black text-white mb-4">
-              {error || 'Witz nicht verfügbar'}
-            </h1>
-            <button
-                onClick={() => router.push('/')}
-                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all"
-            >
-              ← Zurück zum Forum
-            </button>
-          </div>
-        </AppLayout>
+      <AppLayout>
+        <div className="max-w-2xl mx-auto py-20 text-center">
+          <span className="text-6xl block mb-6">😢</span>
+          <h1 className="text-2xl font-black text-white mb-4">
+            {error || 'Witz nicht verfügbar'}
+          </h1>
+          <button
+            onClick={() => router.push('/')}
+            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all"
+          >
+            ← Zurück zum Forum
+          </button>
+        </div>
+      </AppLayout>
     );
   }
 
+  const isDeletedAuthor = witz.author.username === 'Gelöschter Benutzer';
+
   return (
-      <AppLayout>
-        <div className="max-w-2xl mx-auto space-y-4 py-8 px-4">
+    <AppLayout>
+      <div className="max-w-2xl mx-auto space-y-4 py-8 px-4">
+        {/* Zurück */}
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
+        >
+          ← Zurück
+        </button>
 
-          {/* Zurück */}
-          <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
-          >
-            ← Zurück
-          </button>
-
-          {/* Witz Card */}
-          <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6 shadow-2xl">
-
-            {/* Autor */}
-            <div className="flex items-center gap-3 mb-5">
-              <div
-                  onClick={() => router.push(`/profil/${witz.author.username}`)}
-                  className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 cursor-pointer hover:scale-105 transition-transform"
-              >
+        {/* Witz Card */}
+        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6 shadow-2xl">
+          {/* Autor */}
+          <div className="flex items-center gap-3 mb-5">
+            <div
+              onClick={() =>
+                !isDeletedAuthor &&
+                router.push(`/profil/${witz.author.username}`)
+              }
+              className={`w-11 h-11 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                isDeletedAuthor
+                  ? 'cursor-default'
+                  : 'cursor-pointer hover:scale-105'
+              } transition-transform`}
+            >
               <span className="text-white font-black">
                 {witz.author.username.charAt(0).toUpperCase()}
               </span>
-              </div>
-              <div className="flex-1">
-                <div
-                    onClick={() => router.push(`/profil/${witz.author.username}`)}
-                    className="flex items-center gap-1 cursor-pointer hover:text-indigo-400 transition-colors w-fit"
-                >
+            </div>
+
+            <div className="flex-1">
+              <div
+                onClick={() =>
+                  !isDeletedAuthor &&
+                  router.push(`/profil/${witz.author.username}`)
+                }
+                className={
+                  isDeletedAuthor
+                    ? 'flex items-center gap-1 text-gray-400'
+                    : 'flex items-center gap-1 cursor-pointer hover:text-indigo-400 transition-colors w-fit'
+                }
+              >
                 <span className="text-white text-sm font-black">
                   @{witz.author.username}
                 </span>
-                  {witz.author.isBlueVerified && <BlueCheckmark />}
-                </div>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  {new Date(witz.createdAt).toLocaleString('de-DE', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                  {witz.isEdited && (
-                      <span className="ml-2 text-yellow-400/70">✏️ Bearbeitet</span>
-                  )}
-                </p>
+                {witz.author.isBlueVerified && <BlueCheckmark />}
               </div>
-              {witz.kategorie && (
-                  <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full text-xs font-medium flex-shrink-0">
-                {witz.kategorie.emoji} {witz.kategorie.name}
-              </span>
-              )}
-            </div>
 
-            {/* Text */}
-            <div className="bg-gray-800/30 rounded-2xl p-5 mb-5 border border-gray-700/30">
-              <p className="text-white text-xl leading-relaxed font-medium">
-                "{witz.text}"
+              <p className="text-gray-500 text-xs mt-0.5">
+                {new Date(witz.createdAt).toLocaleString('de-DE', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                {witz.isEdited && (
+                  <span className="ml-2 text-yellow-400/70">✏️ Bearbeitet</span>
+                )}
               </p>
             </div>
+            {witz.kategorie && (
+              <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-full text-xs font-medium flex-shrink-0">
+                {witz.kategorie.emoji} {witz.kategorie.name}
+              </span>
+            )}
+          </div>
 
-            {/* Liker */}
-            {witz.likes > 0 && witz.likerNames && witz.likerNames.length > 0 && (
-                <p className="text-gray-500 text-xs mb-4">
+          {/* Text */}
+          <div className="bg-gray-800/30 rounded-2xl p-5 mb-5 border border-gray-700/30">
+            <p className="text-white text-xl leading-relaxed font-medium">
+              "{witz.text}"
+            </p>
+          </div>
+
+          {/* Liker */}
+          {witz.likes > 0 && witz.likerNames && witz.likerNames.length > 0 && (
+            <p className="text-gray-500 text-xs mb-4">
               <span className="text-gray-400">
                 {witz.likerNames.slice(0, 2).map((name, i) => (
-                    <span key={name}>
+                  <span key={name}>
                     {i > 0 && ', '}
-                      <span
-                          onClick={() => router.push(`/profil/${name}`)}
-                          className="hover:text-indigo-400 cursor-pointer transition-colors"
-                      >
+                    <span
+                      onClick={() => router.push(`/profil/${name}`)}
+                      className="hover:text-indigo-400 cursor-pointer transition-colors"
+                    >
                       @{name}
                     </span>
                   </span>
                 ))}
                 {witz.likes > 2 && ` und ${witz.likes - 2} weitere`}
               </span>{' '}
-                  {witz.likes > 1 ? 'haben' : 'hat'} ein ❤️ gegeben
-                </p>
+              {witz.likes > 1 ? 'haben' : 'hat'} ein ❤️ gegeben
+            </p>
+          )}
+
+          <div className="border-t border-gray-800 mb-4" />
+
+          {/* Aktionen */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleLike}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all text-sm font-medium ${
+                witz.userLiked
+                  ? 'text-red-400 bg-red-500/10 border border-red-500/30'
+                  : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 border border-transparent'
+              }`}
+            >
+              ♥ <span>{witz.likes}</span>
+            </button>
+
+            <button
+              onClick={() =>
+                document
+                  .getElementById('kommentare')
+                  ?.scrollIntoView({ behavior: 'smooth' })
+              }
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-500 hover:text-white hover:bg-gray-800/50 border border-transparent hover:border-gray-700/50 transition-all"
+            >
+              💬 <span>{comments.length}</span>
+            </button>
+
+            <button
+              onClick={() => setShowReportDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all text-gray-500 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/20 border-transparent"
+            >
+              🚩 Melden
+            </button>
+
+            <button
+              onClick={handleShare}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                copied
+                  ? 'text-green-400 bg-green-500/10 border-green-500/30'
+                  : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 border-transparent hover:border-indigo-500/20'
+              }`}
+            >
+              {copied ? '✓ Kopiert' : '🔗 Teilen'}
+            </button>
+
+            {likeError && (
+              <p className="text-red-400 text-xs ml-2">{likeError}</p>
             )}
-
-            <div className="border-t border-gray-800 mb-4" />
-
-            {/* Aktionen */}
-            <div className="flex items-center gap-2">
-              <button
-                  onClick={toggleLike}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all text-sm font-medium ${
-                      witz.userLiked
-                          ? 'text-red-400 bg-red-500/10 border border-red-500/30'
-                          : 'text-gray-500 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 border border-transparent'
-                  }`}
-              >
-                ♥ <span>{witz.likes}</span>
-              </button>
-
-              <button
-                  onClick={() => document.getElementById('kommentare')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-gray-500 hover:text-white hover:bg-gray-800/50 border border-transparent hover:border-gray-700/50 transition-all"
-              >
-                💬 <span>{comments.length}</span>
-              </button>
-
-              <button
-                  onClick={handleShare}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
-                      copied
-                          ? 'text-green-400 bg-green-500/10 border-green-500/30'
-                          : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 border-transparent hover:border-indigo-500/20'
-                  }`}
-              >
-                {copied ? '✓ Kopiert' : '🔗 Teilen'}
-              </button>
-
-              {likeError && (
-                  <p className="text-red-400 text-xs ml-2">{likeError}</p>
-              )}
-            </div>
           </div>
+        </div>
 
-          {/* Kommentare */}
-          <div
-              id="kommentare"
-              className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6"
-          >
-            <h2 className="text-white font-black text-lg mb-5">
-              💬 Kommentare
-              <span className="ml-2 px-2 py-0.5 bg-gray-800 rounded-lg text-sm text-gray-400 font-normal">
+        {/* Kommentare */}
+        <div
+          id="kommentare"
+          className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6"
+        >
+          <h2 className="text-white font-black text-lg mb-5">
+            💬 Kommentare
+            <span className="ml-2 px-2 py-0.5 bg-gray-800 rounded-lg text-sm text-gray-400 font-normal">
               {comments.length}
             </span>
-            </h2>
+          </h2>
 
-            {/* Kommentar schreiben */}
-            {isLoggedIn ? (
-                <div className="flex gap-3 mb-6">
-                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+          {/* Kommentar schreiben */}
+          {isLoggedIn ? (
+            <div className="flex gap-3 mb-6">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
                 <span className="text-white text-xs font-bold">
                   {(currentUsername ?? 'U').charAt(0).toUpperCase()}
                 </span>
-                  </div>
-                  <div className="flex-1 flex gap-2">
-                    <input
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && postComment()}
-                        placeholder="Schreibe einen Kommentar..."
-                        className="flex-1 px-4 py-2.5 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
-                    />
-                    <button
-                        onClick={postComment}
-                        disabled={!commentText.trim() || commentLoading}
-                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all text-sm flex-shrink-0"
-                    >
-                      {commentLoading ? '...' : '➤'}
-                    </button>
-                  </div>
-                </div>
-            ) : (
-                <div className="mb-6 p-4 bg-gray-800/30 rounded-2xl border border-gray-700/30 text-center">
-                  <p className="text-gray-400 text-sm">
+              </div>
+              <div className="flex-1 flex gap-2">
+                <input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && !e.shiftKey && postComment()
+                  }
+                  placeholder="Schreibe einen Kommentar..."
+                  className="flex-1 px-4 py-2.5 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
+                />
+                <button
+                  onClick={postComment}
+                  disabled={!commentText.trim() || commentLoading}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all text-sm flex-shrink-0"
+                >
+                  {commentLoading ? '...' : '➤'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-6 p-4 bg-gray-800/30 rounded-2xl border border-gray-700/30 text-center">
+              <p className="text-gray-400 text-sm">
                 <span
-                    onClick={() => router.push('/login')}
-                    className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium"
+                  onClick={() => router.push('/login')}
+                  className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-medium"
                 >
                   Einloggen
                 </span>{' '}
-                    um zu kommentieren
-                  </p>
-                </div>
-            )}
+                um zu kommentieren
+              </p>
+            </div>
+          )}
 
-            {/* Kommentar Liste */}
-            <div className="space-y-3">
-              {comments.length === 0 && (
-                  <div className="text-center py-8">
-                    <span className="text-4xl block mb-2">💬</span>
-                    <p className="text-gray-500 text-sm">
-                      Noch keine Kommentare – sei der Erste!
-                    </p>
-                  </div>
-              )}
-              {comments.map((c) => (
-                  <div
-                      key={c.id}
-                      className="group flex items-start gap-3 p-4 bg-gray-800/50 rounded-2xl border border-gray-700/50"
-                  >
-                    <div
-                        onClick={() => router.push(`/profil/${c.author.username}`)}
-                        className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer hover:scale-105 transition-transform"
-                    >
+          {/* Kommentar Liste */}
+          <div className="space-y-3">
+            {comments.length === 0 && (
+              <div className="text-center py-8">
+                <span className="text-4xl block mb-2">💬</span>
+                <p className="text-gray-500 text-sm">
+                  Noch keine Kommentare – sei der Erste!
+                </p>
+              </div>
+            )}
+            {comments.map((c) => (
+              <div
+                key={c.id}
+                className="group flex items-start gap-3 p-4 bg-gray-800/50 rounded-2xl border border-gray-700/50"
+              >
+                <div
+                  onClick={() => router.push(`/profil/${c.author.username}`)}
+                  className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer hover:scale-105 transition-transform"
+                >
                   <span className="text-white text-xs font-bold">
                     {c.author.username.charAt(0).toUpperCase()}
                   </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div
-                            onClick={() => router.push(`/profil/${c.author.username}`)}
-                            className="flex items-center gap-1 cursor-pointer hover:text-indigo-400 transition-colors"
-                        >
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div
+                      onClick={() =>
+                        router.push(`/profil/${c.author.username}`)
+                      }
+                      className="flex items-center gap-1 cursor-pointer hover:text-indigo-400 transition-colors"
+                    >
                       <span className="text-white text-sm font-semibold">
                         @{c.author.username}
                       </span>
-                          {c.author.isBlueVerified && <BlueCheckmark size={3} />}
-                        </div>
-                        <span className="text-gray-500 text-xs flex-shrink-0">
+                      {c.author.isBlueVerified && <BlueCheckmark size={3} />}
+                    </div>
+                    <span className="text-gray-500 text-xs flex-shrink-0">
                       {new Date(c.createdAt).toLocaleString('de-DE', {
                         day: 'numeric',
                         month: 'short',
@@ -373,25 +427,32 @@ export default function WitzDetail() {
                         minute: '2-digit',
                       })}
                     </span>
-                      </div>
-                      <p className="text-gray-300 text-sm leading-relaxed">
-                        {c.text}
-                      </p>
-                    </div>
-                    {(isLoggedIn && currentUsername === c.author.username) && (
-                        <button
-                            onClick={() => deleteComment(c.id)}
-                            className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
-                            title="Löschen"
-                        >
-                          🗑️
-                        </button>
-                    )}
                   </div>
-              ))}
-            </div>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {c.text}
+                  </p>
+                </div>
+                {isLoggedIn && currentUsername === c.author.username && (
+                  <button
+                    onClick={() => deleteComment(c.id)}
+                    className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                    title="Löschen"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      </AppLayout>
+      </div>
+
+      {showReportDialog && (
+        <ReportDialog
+          witzId={witz.id}
+          onClose={() => setShowReportDialog(false)}
+        />
+      )}
+    </AppLayout>
   );
 }

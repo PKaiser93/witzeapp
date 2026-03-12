@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import BanModal from '@/components/BanModal';
 import WarnModal from '@/components/WarnModal';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useRequireAdmin } from '@/hooks/useRequireAdmin';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -13,7 +15,8 @@ interface User {
   username: string;
   email: string;
   role: string;
-  _count: { witze: number; comments: number };
+  jokesCount: number;
+  commentsCount?: number;
   ban?: { active: boolean; expiresAt: string | null; reason: string } | null;
 }
 
@@ -21,11 +24,6 @@ interface Warning {
   id: number;
   reason: string;
   createdAt: string;
-}
-
-function getAuthHeader() {
-  const token = localStorage.getItem('token');
-  return { Authorization: `Bearer ${token}` };
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -43,6 +41,7 @@ const ROLE_EMOJI: Record<string, string> = {
 };
 
 export default function AdminUsersPage() {
+  const checking = useRequireAdmin();
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,12 +63,14 @@ export default function AdminUsersPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (localStorage.getItem('role') !== 'ADMIN') {
-      router.push('/');
-      return;
-    }
-    loadUsers();
-  }, [router]);
+    if (checking) return;
+    const load = async () => {
+      const res = await fetchWithAuth(`${API_URL}/admin/users`);
+      if (res.ok) setUsers(await res.json());
+      setLoading(false);
+    };
+    load();
+  }, [checking]);
 
   // Dropdown schließen bei Klick außerhalb
   useEffect(() => {
@@ -82,17 +83,15 @@ export default function AdminUsersPage() {
   }, []);
 
   const loadUsers = async () => {
-    const res = await fetch(`${API_URL}/admin/users`, {
-      headers: getAuthHeader(),
-    });
+    const res = await fetchWithAuth(`${API_URL}/admin/users`);
     if (res.ok) setUsers(await res.json());
     setLoading(false);
   };
 
   const updateRole = async (userId: number, role: string) => {
-    const res = await fetch(`${API_URL}/admin/users/${userId}/role`, {
+    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/role`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
     });
     if (res.ok)
@@ -103,17 +102,16 @@ export default function AdminUsersPage() {
 
   const deleteUser = async (userId: number, username: string) => {
     if (!confirm(`User @${username} wirklich löschen?`)) return;
-    const res = await fetch(`${API_URL}/admin/users/${userId}`, {
+    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}`, {
       method: 'DELETE',
-      headers: getAuthHeader(),
     });
     if (res.ok) setUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
   const banUser = async (userId: number, reason: string, duration: string) => {
-    const res = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
+    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/ban`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason, duration }),
     });
     if (res.ok) {
@@ -123,17 +121,16 @@ export default function AdminUsersPage() {
   };
 
   const unbanUser = async (userId: number) => {
-    const res = await fetch(`${API_URL}/admin/users/${userId}/unban`, {
+    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/unban`, {
       method: 'PATCH',
-      headers: getAuthHeader(),
     });
     if (res.ok) loadUsers();
   };
 
   const warnUser = async (userId: number, reason: string) => {
-    const res = await fetch(`${API_URL}/admin/users/${userId}/warn`, {
+    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/warn`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
     });
     if (res.ok) setWarnModal(null);
@@ -146,24 +143,20 @@ export default function AdminUsersPage() {
     }
     setExpandedUser(userId);
     if (!warningsMap[userId]) {
-      const res = await fetch(`${API_URL}/admin/users/${userId}/warnings`, {
-        headers: getAuthHeader(),
-      });
+      const res = await fetchWithAuth(
+        `${API_URL}/admin/users/${userId}/warnings`
+      );
       if (res.ok) {
-        const data = await res.json(); // <--- erst awaiten
-        setWarningsMap((prev) => ({ ...prev, [userId]: data })); // <--- dann setzen
+        const data = await res.json();
+        setWarningsMap((prev) => ({ ...prev, [userId]: data }));
       }
     }
   };
 
   const deleteWarning = async (userId: number, warningId: number) => {
-    const res = await fetch(
-      `${API_URL}/admin/users/${userId}/warnings/${warningId}`,
-      {
-        method: 'DELETE',
-        headers: getAuthHeader(),
-      }
-    );
+    const res = await fetchWithAuth(`${API_URL}/admin/warnings/${warningId}`, {
+      method: 'DELETE',
+    });
     if (res.ok)
       setWarningsMap((prev) => ({
         ...prev,
@@ -179,6 +172,16 @@ export default function AdminUsersPage() {
 
   const bannedCount = users.filter((u) => u.ban?.active).length;
   const adminCount = users.filter((u) => u.role === 'ADMIN').length;
+
+  if (checking) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -306,12 +309,16 @@ export default function AdminUsersPage() {
                       </span>
                     </div>
 
-                    {/* Aktivität */}
+                    {/* Aktivität im Header-Row */}
                     <div className="col-span-2 text-center">
                       <p className="text-white text-sm font-semibold">
-                        {u._count.witze}
+                        {u.jokesCount}
                       </p>
                       <p className="text-gray-500 text-xs">Witze</p>
+                      <p className="text-white text-sm font-semibold mt-1">
+                        {u.commentsCount ?? 0}
+                      </p>
+                      <p className="text-gray-500 text-xs">Kommentare</p>
                     </div>
 
                     {/* Status */}
@@ -363,13 +370,13 @@ export default function AdminUsersPage() {
                         <div className="grid grid-cols-3 gap-3">
                           <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
                             <p className="text-white font-bold">
-                              {u._count.witze}
+                              {u.jokesCount}
                             </p>
                             <p className="text-gray-500 text-xs">Witze</p>
                           </div>
                           <div className="bg-gray-800/50 rounded-xl px-4 py-3 text-center">
                             <p className="text-white font-bold">
-                              {u._count.comments}
+                              {u.commentsCount ?? 0}
                             </p>
                             <p className="text-gray-500 text-xs">Kommentare</p>
                           </div>

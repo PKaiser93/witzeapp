@@ -20,7 +20,6 @@ model User {
   reports Report[]
   auditLogs AuditLog[]
   bio String? @default("")
-
   ban            Ban?
   warnings       Warning[]
   bansGiven      Ban[]     @relation("BannedBy")

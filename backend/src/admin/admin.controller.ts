@@ -1,3 +1,4 @@
+// src/admin/admin.controller.ts
 import {
   Controller,
   Get,
@@ -10,12 +11,16 @@ import {
   Post,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { BanService } from './ban.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { BanService } from './ban.service';
+import { UpdateRoleDto } from './dto/update-role.dto';
+import { BanUserDto } from './dto/ban-user.dto';
+import { WarnUserDto } from './dto/warn-user.dto';
+import { UpdateConfigDto } from './dto/update-config.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -44,10 +49,10 @@ export class AdminController {
   @Patch('users/:id/role')
   updateRole(
     @Param('id', ParseIntPipe) id: number,
-    @Body('role') role: string,
+    @Body() dto: UpdateRoleDto,
     @CurrentUser() admin: JwtPayload,
   ) {
-    return this.adminService.updateUserRole(id, role, admin.sub);
+    return this.adminService.updateUserRole(id, dto.role, admin.sub);
   }
 
   @Delete('users/:id')
@@ -61,11 +66,10 @@ export class AdminController {
   @Post('users/:id/ban')
   banUser(
     @Param('id', ParseIntPipe) id: number,
-    @Body('reason') reason: string,
-    @Body('duration') duration: string,
+    @Body() dto: BanUserDto,
     @CurrentUser() admin: JwtPayload,
   ) {
-    return this.banService.banUser(id, admin.sub, reason, duration);
+    return this.banService.banUser(id, admin.sub, dto.reason, dto.duration);
   }
 
   @Patch('users/:id/unban')
@@ -79,10 +83,10 @@ export class AdminController {
   @Post('users/:id/warn')
   warnUser(
     @Param('id', ParseIntPipe) id: number,
-    @Body('reason') reason: string,
+    @Body() dto: WarnUserDto,
     @CurrentUser() admin: JwtPayload,
   ) {
-    return this.banService.warnUser(id, admin.sub, reason);
+    return this.banService.warnUser(id, admin.sub, dto.reason);
   }
 
   @Get('users/:id/warnings')
@@ -90,9 +94,8 @@ export class AdminController {
     return this.banService.getWarnings(id);
   }
 
-  @Delete('users/:userId/warnings/:warningId')
+  @Delete('warnings/:warningId')
   deleteWarning(
-    @Param('userId', ParseIntPipe) userId: number,
     @Param('warningId', ParseIntPipe) warningId: number,
     @CurrentUser() admin: JwtPayload,
   ) {
@@ -105,8 +108,8 @@ export class AdminController {
   }
 
   @Patch('config/:key')
-  updateConfig(@Param('key') key: string, @Body('value') value: string) {
-    return this.adminService.updateConfig(key, value);
+  updateConfig(@Param('key') key: string, @Body() dto: UpdateConfigDto) {
+    return this.adminService.updateConfig(key, dto.value);
   }
 
   @Get('reports')

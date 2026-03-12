@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -16,7 +17,7 @@ type Application = {
     username: string;
     createdAt: string;
     badges: { key: string }[];
-    _count: { witze: number };
+    _count: { witze?: number };
   };
   admin: { username: string } | null;
 };
@@ -26,45 +27,49 @@ export default function AdminVerifiedPage() {
   const [filter, setFilter] = useState<string>('PENDING');
   const [loading, setLoading] = useState(true);
   const [rejectNote, setRejectNote] = useState<Record<number, string>>({});
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    setToken(localStorage.getItem('token'));
-  }, []);
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch(
-      `${API_URL}/verified-application/admin?status=${filter}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+
+    const role = localStorage.getItem('role');
+    if (role !== 'ADMIN') {
+      window.location.href = '/';
+      return;
+    }
+
+    const res = await fetchWithAuth(
+      `${API_URL}/verified-application/admin?status=${filter}`
     );
-    if (res.ok) setApplications(await res.json());
+
+    if (res.ok) {
+      setApplications(await res.json());
+    }
+
     setLoading(false);
   };
 
   useEffect(() => {
-    if (!token) return;
     load();
-  }, [filter, token]);
+  }, [filter]);
 
   const approve = async (id: number) => {
-    await fetch(`${API_URL}/verified-application/admin/${id}/approve`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    load();
+    const res = await fetchWithAuth(
+      `${API_URL}/verified-application/admin/${id}/approve`,
+      { method: 'PATCH' }
+    );
+    if (res.ok) load();
   };
 
   const reject = async (id: number) => {
-    await fetch(`${API_URL}/verified-application/admin/${id}/reject`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ adminNote: rejectNote[id] || '' }),
-    });
-    load();
+    const res = await fetchWithAuth(
+      `${API_URL}/verified-application/admin/${id}/reject`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNote: rejectNote[id] || '' }),
+      }
+    );
+    if (res.ok) load();
   };
 
   const statusBadge = (status: string) => {
@@ -163,9 +168,12 @@ export default function AdminVerifiedPage() {
 
                 {/* Stats */}
                 <div className="flex flex-wrap gap-4 text-sm text-gray-400 mb-3">
-                  <span>📝 {app.user._count.witze} Witze</span>
+                  <span>📝 {app.user._count.witze ?? 0} Witze</span>
                   <span>
-                    🎖️ {app.user.badges.map((b) => b.key).join(', ') || '–'}
+                    🎖️{' '}
+                    {app.user.badges.length > 0
+                      ? app.user.badges.map((b) => b.key).join(', ')
+                      : '–'}
                   </span>
                   <span>
                     📅 {new Date(app.createdAt).toLocaleDateString('de-DE')}
@@ -192,7 +200,9 @@ export default function AdminVerifiedPage() {
                   <p className="text-xs text-gray-500 mb-3">
                     Bearbeitet von @{app.admin.username}
                     {app.reviewedAt &&
-                      ` am ${new Date(app.reviewedAt).toLocaleDateString('de-DE')}`}
+                      ` am ${new Date(app.reviewedAt).toLocaleDateString(
+                        'de-DE'
+                      )}`}
                   </p>
                 )}
 

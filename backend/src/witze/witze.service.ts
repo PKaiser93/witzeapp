@@ -200,10 +200,18 @@ export class WitzeService {
 
     if (!witz) throw new NotFoundException('Witz nicht gefunden');
 
+    const author =
+      witz.author ??
+      ({
+        username: 'Gelöschter Benutzer',
+        isBlueVerified: false,
+      } as const);
+
     const likerNames = witz.likeLikes.map((l) => l.user.username);
 
     return {
       ...witz,
+      author,
       likes: witz._count.likeLikes,
       userLiked: userId
         ? witz.likeLikes.some((l) => l.userId === userId)
@@ -302,8 +310,49 @@ export class WitzeService {
   }
 
   async report(witzId: number, userId: number, reason: string) {
+    const witz = await this.prisma.witz.findUnique({
+      where: { id: witzId },
+      select: { id: true },
+    });
+    if (!witz) {
+      throw new NotFoundException('Witz nicht gefunden');
+    }
+
+    const existing = await this.prisma.report.findUnique({
+      where: {
+        userId_witzId: {
+          userId,
+          witzId,
+        },
+      },
+    });
+
+    if (existing) {
+      if (!existing.resolved) {
+        // Bereits gemeldet, noch nicht bearbeitet
+        throw new ForbiddenException(
+          'Du hast diesen Witz bereits gemeldet. Die Meldung wird noch geprüft.',
+        );
+      }
+
+      // Meldung war ignoriert → wieder "öffnen"
+      return this.prisma.report.update({
+        where: { id: existing.id },
+        data: {
+          resolved: false,
+          reason,
+          createdAt: new Date(), // optional aktualisieren
+        },
+      });
+    }
+
+    // Erster Report
     return this.prisma.report.create({
-      data: { witzId, userId, reason },
+      data: {
+        witzId,
+        userId,
+        reason,
+      },
     });
   }
 }

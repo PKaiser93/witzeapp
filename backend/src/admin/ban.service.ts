@@ -2,6 +2,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { BanResponseDto } from './dto/ban-response.dto';
 
 export const BAN_DURATIONS: Record<string, number | null> = {
   '1h': 1 * 60 * 60 * 1000,
@@ -46,7 +47,7 @@ export class BanService {
     adminId: number,
     reason: string,
     duration: string,
-  ) {
+  ): Promise<BanResponseDto> {
     const target = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { username: true },
@@ -75,7 +76,15 @@ export class BanService {
       `@${target?.username} gebannt für ${duration} – Grund: ${reason}`,
     );
 
-    return ban;
+    return new BanResponseDto({
+      id: ban.id,
+      userId: ban.userId,
+      reason: ban.reason,
+      bannedBy: ban.bannedBy,
+      bannedAt: ban.bannedAt,
+      expiresAt: ban.expiresAt,
+      active: ban.active,
+    });
   }
 
   async unbanUser(userId: number, adminId: number) {
@@ -110,7 +119,6 @@ export class BanService {
       data: { userId, warnedBy: adminId, reason },
     });
 
-    // Notification
     await this.notificationsService.createNotification(
       userId,
       'warning',
@@ -140,7 +148,6 @@ export class BanService {
     const ban = await this.prisma.ban.findUnique({ where: { userId } });
     if (!ban || !ban.active) return { banned: false };
 
-    // Abgelaufenen Ban automatisch deaktivieren
     if (ban.expiresAt && ban.expiresAt < new Date()) {
       await this.prisma.ban.update({
         where: { userId },

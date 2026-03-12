@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -9,11 +10,6 @@ interface Kategorie {
   id: number;
   name: string;
   emoji: string;
-}
-
-function getAuthHeader() {
-  const token = localStorage.getItem('token');
-  return { Authorization: `Bearer ${token}` };
 }
 
 export default function AdminKategorienPage() {
@@ -36,16 +32,20 @@ export default function AdminKategorienPage() {
   }, [router]);
 
   const loadKategorien = async () => {
-    const res = await fetch(`${API_URL}/kategorien`);
-    if (res.ok) setKategorien(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/kategorien`);
+      if (!res.ok) return;
+      setKategorien(await res.json());
+    } finally {
+      setLoading(false);
+    }
   };
 
   const create = async () => {
     if (!newName.trim() || !newEmoji.trim()) return;
-    const res = await fetch(`${API_URL}/kategorien`, {
+    const res = await fetchWithAuth(`${API_URL}/kategorien`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName.trim(), emoji: newEmoji.trim() }),
     });
     if (res.ok) {
@@ -60,9 +60,9 @@ export default function AdminKategorienPage() {
 
   const update = async (id: number) => {
     if (!editName.trim() || !editEmoji.trim()) return;
-    const res = await fetch(`${API_URL}/kategorien/${id}`, {
+    const res = await fetchWithAuth(`${API_URL}/kategorien/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editName.trim(), emoji: editEmoji.trim() }),
     });
     if (res.ok) {
@@ -73,9 +73,8 @@ export default function AdminKategorienPage() {
 
   const deleteKategorie = async (id: number, name: string) => {
     if (!confirm(`Kategorie "${name}" wirklich löschen?`)) return;
-    const res = await fetch(`${API_URL}/kategorien/${id}`, {
+    const res = await fetchWithAuth(`${API_URL}/kategorien/${id}`, {
       method: 'DELETE',
-      headers: getAuthHeader(),
     });
     if (res.ok) loadKategorien();
   };

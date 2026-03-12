@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useAppConfig } from '@/context/AppConfigContext';
-import ReportModal from '@/components/ReportModal';
+import ReportDialog from '@/components/ReportDialog';
 import WitzCard from '@/components/feed/WitzCard';
 import WitzOfTheDayBanner from '@/components/feed/WitzOfTheDay';
 import FeedFilters from '@/components/feed/FeedFilters';
@@ -334,7 +334,7 @@ export default function HomePage() {
       </div>
 
       {reportingWitzId && (
-        <ReportModal
+        <ReportDialog
           witzId={reportingWitzId}
           onClose={() => setReportingWitzId(null)}
         />
