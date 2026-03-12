@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { emoji: '👥', name: 'Following', path: '/following' },
   { emoji: '🏆', name: 'Leaderboard', path: '/leaderboard' },
   { emoji: '🔔', name: 'Benachrichtigungen', path: '/notifications' },
+  { emoji: '📜', name: 'Regeln', path: '/regeln' },
 ];
 
 const PROFIL_ITEMS: NavItem[] = [

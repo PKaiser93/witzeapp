@@ -223,17 +223,6 @@ export default function HilfePage() {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-10 p-6 bg-gray-900/50 border border-gray-800/50 rounded-3xl">
-          <p className="text-gray-400 text-sm mb-4">
-            Deine Frage ist nicht dabei?
-          </p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition-all"
-          >
-            💬 Im Forum fragen
-          </button>
-        </div>
       </div>
     </AppLayout>
   );
