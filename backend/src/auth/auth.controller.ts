@@ -38,8 +38,8 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Body('refresh_token') refreshToken: string) {
-    return this.authService.refreshAccessToken(refreshToken);
+  async refresh(@Body('refresh_token') token: string) {
+    return this.authService.refresh(token);
   }
 
   @Post('logout')

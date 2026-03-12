@@ -56,6 +56,7 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
     if (!registerEnabled) {
       setError('Registrierung ist derzeit deaktiviert.');
       return;
@@ -80,24 +81,15 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, username }),
       });
+
       if (!registerRes.ok) {
-        const data = await registerRes.json();
+        const data = await registerRes.json().catch(() => null);
         setError(data?.message ?? 'Registrierung fehlgeschlagen.');
         return;
       }
-      const loginRes = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const loginData = await loginRes.json();
-      localStorage.setItem('token', loginData.access_token);
-      localStorage.setItem('refresh_token', loginData.refresh_token);
-      localStorage.setItem('email', email);
-      localStorage.setItem('username', username);
-      if (loginData.user?.role)
-        localStorage.setItem('role', loginData.user.role);
-      router.push('/');
+
+      // Kein automatischer Login mehr hier
+      router.push('/verify-pending');
     } catch {
       setError('Verbindung zum Server fehlgeschlagen.');
     } finally {

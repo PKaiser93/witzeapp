@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useRequireAdmin } from '@/hooks/useRequireAdmin';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -69,11 +71,6 @@ const ACTION_CONFIG: Record<
   },
 };
 
-function getAuthHeader() {
-  const token = localStorage.getItem('token');
-  return { Authorization: `Bearer ${token}` };
-}
-
 function groupByDate(logs: AuditLog[]) {
   const groups: Record<string, AuditLog[]> = {};
   logs.forEach((log) => {
@@ -89,6 +86,7 @@ function groupByDate(logs: AuditLog[]) {
 }
 
 export default function AdminLogsPage() {
+  const checking = useRequireAdmin();
   const router = useRouter();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,15 +94,17 @@ export default function AdminLogsPage() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (localStorage.getItem('role') !== 'ADMIN') {
-      router.push('/');
-      return;
-    }
-    fetch(`${API_URL}/admin/logs`, { headers: getAuthHeader() })
-      .then((res) => res.json())
-      .then((data) => setLogs(Array.isArray(data) ? data : []))
-      .finally(() => setLoading(false));
-  }, [router]);
+    if (checking) return;
+    const load = async () => {
+      const res = await fetchWithAuth(`${API_URL}/admin/logs`);
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(Array.isArray(data) ? data : []);
+      }
+      setLoading(false);
+    };
+    load();
+  }, [checking]);
 
   const filtered = logs
     .filter((l) => filter === 'all' || l.action === filter)
@@ -119,6 +119,16 @@ export default function AdminLogsPage() {
     });
 
   const grouped = groupByDate(filtered);
+
+  if (checking) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

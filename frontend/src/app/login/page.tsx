@@ -13,37 +13,62 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem('token')) router.push('/');
+    // Bei vorhandenem Token direkt weg von der Login-Seite
+    if (localStorage.getItem('token')) {
+      router.push('/');
+    }
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // falls der Server mal kein JSON zurückgibt
+      }
+
       if (!res.ok) {
         setError(data?.message ?? 'Login fehlgeschlagen.');
         return;
       }
+
+      if (!data?.access_token || !data?.refresh_token) {
+        setError('Ungültige Serverantwort.');
+        return;
+      }
+
       localStorage.setItem('token', data.access_token);
-      localStorage.setItem('refresh_token', data.refresh_token)
+      localStorage.setItem('refresh_token', data.refresh_token);
       localStorage.setItem('email', email);
-      if (data.user?.username)
+
+      if (data.user?.username) {
         localStorage.setItem('username', data.user.username);
-      if (data.user?.role) localStorage.setItem('role', data.user.role);
+      }
+      if (data.user?.role) {
+        localStorage.setItem('role', data.user.role);
+      }
+
+      // JWT Payload prüfen (z.B. isVerified)
       try {
         const payload = JSON.parse(atob(data.access_token.split('.')[1]));
         if (payload.isVerified === false) {
           router.push('/verify-pending');
           return;
         }
-      } catch {}
+      } catch {
+        // Payload-Fehler ignorieren, „normal“ weiter
+      }
 
       router.push('/');
     } catch {
@@ -135,14 +160,15 @@ export default function LoginPage() {
                   >
                     {showPassword ? '🙈' : '👁️'}
                   </button>
-                  <button
-                      type="button"
-                      onClick={() => router.push('/forgot-password')}
-                      className="text-indigo-400 hover:text-indigo-300 text-xs transition-colors"
-                  >
-                    Passwort vergessen?
-                  </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => router.push('/forgot-password')}
+                  className="mt-1 text-indigo-400 hover:text-indigo-300 text-xs transition-colors"
+                >
+                  Passwort vergessen?
+                </button>
               </div>
 
               {error && (

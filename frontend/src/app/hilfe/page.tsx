@@ -12,6 +12,7 @@ export default function HilfePage() {
 
   const sections = [
     {
+      id: 'faq-start',
       title: '🚀 Erste Schritte',
       items: [
         {
@@ -37,6 +38,7 @@ export default function HilfePage() {
       ],
     },
     {
+      id: 'faq-posts',
       title: '📝 Witze posten',
       items: [
         {
@@ -62,6 +64,7 @@ export default function HilfePage() {
       ],
     },
     {
+      id: 'faq-likes',
       title: '❤️ Likes & Kommentare',
       items: [
         {
@@ -79,6 +82,7 @@ export default function HilfePage() {
       ],
     },
     {
+      id: 'faq-account',
       title: '👤 Profil & Account',
       items: [
         {
@@ -124,6 +128,7 @@ export default function HilfePage() {
       ],
     },
     {
+      id: 'faq-search',
       title: '🔍 Suche & Filter',
       items: [
         {
@@ -141,6 +146,7 @@ export default function HilfePage() {
       ],
     },
     {
+      id: 'faq-safety',
       title: '🚩 Melden & Sicherheit',
       items: [
         {
@@ -167,12 +173,51 @@ export default function HilfePage() {
     <AppLayout>
       <div className="max-w-3xl mx-auto px-4 py-10">
         {/* Header */}
-        <div className="text-center mb-10">
-          <span className="text-5xl block mb-4">❓</span>
-          <h1 className="text-4xl font-black text-white mb-3">Hilfe & FAQ</h1>
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 mb-4 shadow-lg shadow-indigo-500/30">
+            <span className="text-3xl">❓</span>
+          </div>
+          <h1 className="text-3xl font-black text-white mb-2">Hilfe & FAQ</h1>
           <p className="text-gray-400 text-sm">
-            Antworten auf häufige Fragen zur WitzeApp
+            Finde Antworten zu Registrierung, Witzen, Profil und mehr.
           </p>
+        </div>
+
+        {/* Quick Links */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+          <button
+            onClick={() =>
+              document
+                .getElementById('faq-start')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+            className="bg-gray-900/80 border border-gray-800/60 rounded-2xl px-4 py-3 text-left hover:border-indigo-500/60 hover:bg-gray-900 transition-all"
+          >
+            <p className="text-xs text-gray-500 mb-1">Neu hier?</p>
+            <p className="text-sm font-semibold text-white">Erste Schritte</p>
+          </button>
+          <button
+            onClick={() =>
+              document
+                .getElementById('faq-posts')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+            className="bg-gray-900/80 border border-gray-800/60 rounded-2xl px-4 py-3 text-left hover:border-indigo-500/60 hover:bg-gray-900 transition-all"
+          >
+            <p className="text-xs text-gray-500 mb-1">Kreativ werden</p>
+            <p className="text-sm font-semibold text-white">Witze posten</p>
+          </button>
+          <button
+            onClick={() =>
+              document
+                .getElementById('faq-account')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+            className="bg-gray-900/80 border border-gray-800/60 rounded-2xl px-4 py-3 text-left hover:border-indigo-500/60 hover:bg-gray-900 transition-all"
+          >
+            <p className="text-xs text-gray-500 mb-1">Dein Bereich</p>
+            <p className="text-sm font-semibold text-white">Profil & Account</p>
+          </button>
         </div>
 
         {/* Sections */}
@@ -180,6 +225,7 @@ export default function HilfePage() {
           {sections.map((section) => (
             <div
               key={section.title}
+              id={section.id}
               className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl overflow-hidden"
             >
               <div className="px-6 py-4 border-b border-gray-800/50">
@@ -195,14 +241,14 @@ export default function HilfePage() {
                     <button
                       key={i}
                       onClick={() => toggle(key)}
-                      className="w-full text-left px-6 py-4 hover:bg-gray-800/30 transition-all"
+                      className="w-full text-left px-6 py-4 hover:bg-gray-800/40 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-4">
-                        <p className="text-white text-sm font-semibold">
+                        <p className="text-white text-sm font-medium">
                           {item.q}
                         </p>
                         <span
-                          className={`text-gray-500 text-xs transition-transform flex-shrink-0 ${
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-800/70 text-[10px] text-gray-400 transition-transform flex-shrink-0 ${
                             isOpen ? 'rotate-180' : ''
                           }`}
                         >
@@ -222,7 +268,16 @@ export default function HilfePage() {
           ))}
         </div>
 
-        {/* Footer */}
+        {/* Footer / Call to action */}
+        <div className="mt-10 text-center text-sm text-gray-500">
+          <p className="mb-2">Noch Fragen oder einen Bug entdeckt?</p>
+          <button
+            onClick={() => router.push('/hilfe/kontakt')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/80 border border-gray-700/60 text-gray-200 hover:border-indigo-500/60 hover:text-white transition-all text-xs"
+          >
+            💬 Support kontaktieren
+          </button>
+        </div>
       </div>
     </AppLayout>
   );

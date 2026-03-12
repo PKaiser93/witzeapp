@@ -17,6 +17,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TasksModule } from './tasks/tasks.module';
 import { MailModule } from './mail/mail.module';
 import { VerifiedApplicationModule } from './verified-application/verified-application.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { VerifiedApplicationModule } from './verified-application/verified-appli
     FollowModule,
     MailModule,
     VerifiedApplicationModule,
+    SupportModule,
   ],
   providers: [
     {

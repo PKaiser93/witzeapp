@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useRequireAdmin } from '@/hooks/useRequireAdmin';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -23,6 +24,7 @@ type Application = {
 };
 
 export default function AdminVerifiedPage() {
+  const checking = useRequireAdmin();
   const [applications, setApplications] = useState<Application[]>([]);
   const [filter, setFilter] = useState<string>('PENDING');
   const [loading, setLoading] = useState(true);
@@ -30,27 +32,19 @@ export default function AdminVerifiedPage() {
 
   const load = async () => {
     setLoading(true);
-
-    const role = localStorage.getItem('role');
-    if (role !== 'ADMIN') {
-      window.location.href = '/';
-      return;
-    }
-
     const res = await fetchWithAuth(
       `${API_URL}/verified-application/admin?status=${filter}`
     );
-
     if (res.ok) {
       setApplications(await res.json());
     }
-
     setLoading(false);
   };
 
   useEffect(() => {
+    if (checking) return;
     load();
-  }, [filter]);
+  }, [filter, checking]);
 
   const approve = async (id: number) => {
     const res = await fetchWithAuth(
@@ -91,6 +85,16 @@ export default function AdminVerifiedPage() {
       </span>
     );
   };
+
+  if (checking) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

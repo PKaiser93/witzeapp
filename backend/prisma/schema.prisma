@@ -223,6 +223,22 @@ model VerifiedApplication {
   admin       User?     @relation("ReviewedBy", fields: [reviewedBy], references: [id])
 }
 
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+model SupportMessage {
+  id        Int           @id @default(autoincrement())
+  ticketId  String        @unique
+  subject   String
+  message   String
+  email     String?
+  status    SupportStatus @default(OPEN)
+  createdAt DateTime      @default(now())
+}
+
 enum ApplicationStatus {
   PENDING
   APPROVED

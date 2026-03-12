@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useRequireAdmin } from '@/hooks/useRequireAdmin';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -13,6 +14,7 @@ interface Kategorie {
 }
 
 export default function AdminKategorienPage() {
+  const checking = useRequireAdmin();
   const router = useRouter();
   const [kategorien, setKategorien] = useState<Kategorie[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,12 +26,9 @@ export default function AdminKategorienPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (localStorage.getItem('role') !== 'ADMIN') {
-      router.push('/');
-      return;
-    }
+    if (checking) return;
     loadKategorien();
-  }, [router]);
+  }, [checking]);
 
   const loadKategorien = async () => {
     try {
@@ -78,6 +77,16 @@ export default function AdminKategorienPage() {
     });
     if (res.ok) loadKategorien();
   };
+
+  if (checking) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

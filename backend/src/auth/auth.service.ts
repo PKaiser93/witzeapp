@@ -234,32 +234,49 @@ export class AuthService {
     };
   }
 
-  async refreshAccessToken(refreshToken: string) {
-    const stored = await this.prisma.refreshToken.findUnique({
+  async refresh(refreshToken: string): Promise<LoginResult> {
+    const record = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: {
-        user: { select: { id: true, username: true, email: true, role: true } },
-      },
+      include: { user: true },
     });
 
-    if (!stored) throw new UnauthorizedException('Ungültiger Refresh Token');
-    if (stored.expiresAt < new Date()) {
-      await this.prisma.refreshToken.delete({ where: { token: refreshToken } });
-      throw new UnauthorizedException('Refresh Token abgelaufen');
+    if (!record || record.expiresAt < new Date()) {
+      throw new UnauthorizedException('Refresh Token ungültig oder abgelaufen');
     }
 
+    const user = record.user;
+
     const payload = {
-      sub: stored.user.id,
-      username: stored.user.username,
-      email: stored.user.email,
-      role: stored.user.role,
+      sub: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      isVerified: user.isVerified,
     };
 
     const accessToken = await this.jwtService.signAsync(payload, {
       expiresIn: '15m',
     });
 
-    return { access_token: accessToken };
+    const newRefreshToken = randomBytes(64).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    await this.prisma.refreshToken.create({
+      data: { token: newRefreshToken, userId: user.id, expiresAt },
+    });
+
+    return {
+      access_token: accessToken,
+      refresh_token: newRefreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    };
   }
 
   async logout(refreshToken: string, accessToken?: string) {
