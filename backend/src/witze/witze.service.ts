@@ -272,6 +272,7 @@ export class WitzeService {
       select: {
         id: true,
         username: true,
+        isBlueVerified: true,
         _count: {
           select: {
             witze: true,
@@ -292,6 +293,7 @@ export class WitzeService {
       .map((u) => ({
         id: u.id,
         username: u.username,
+        isBlueVerified: u.isBlueVerified,
         witzeCount: u._count.witze,
         likesReceived: u.witze.reduce((sum, w) => sum + w._count.likeLikes, 0),
       }))
