@@ -18,11 +18,14 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { emoji: '🏠', name: 'Home', path: '/' },
-  { emoji: '👤', name: 'Profil', path: '/profil' },
-  { emoji: '🔔', name: 'Benachrichtigungen', path: '/notifications' }, // <--- NEU
+  { emoji: '✏️', name: 'Witz posten', path: '/post' },
   { emoji: '👥', name: 'Following', path: '/following' },
   { emoji: '🏆', name: 'Leaderboard', path: '/leaderboard' },
-  { emoji: '✏️', name: 'Witz posten', path: '/post' },
+  { emoji: '🔔', name: 'Benachrichtigungen', path: '/notifications' },
+];
+
+const PROFIL_ITEMS: NavItem[] = [
+  { emoji: '👤', name: 'Mein Profil', path: '/profil' },
   { emoji: '❓', name: 'Hilfe', path: '/hilfe' },
 ];
 
@@ -35,37 +38,41 @@ const ADMIN_ITEMS: NavItem[] = [
   { emoji: '🏷️', name: 'Kategorien', path: '/admin/kategorien' },
 ];
 
-interface NavButtonProps {
-  item: NavItem;
-  active: boolean;
-  onClick: () => void;
-}
-
-function NavButton({ item, active, onClick }: NavButtonProps) {
+function SectionLabel({ label }: { label: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all border ${
-        active
-          ? 'bg-indigo-600/80 text-white border-indigo-500/50 shadow-lg shadow-indigo-500/10'
-          : 'text-gray-400 hover:text-white hover:bg-gray-800/50 border-transparent hover:border-gray-700/50'
-      }`}
-    >
-      <span className="text-lg">{item.emoji}</span>
-      <span>{item.name}</span>
-    </button>
+      <p className="text-gray-600 text-xs font-bold uppercase tracking-widest px-2 mb-2 mt-1">
+        {label}
+      </p>
   );
 }
 
-interface SectionProps {
-  label: string;
+function Divider() {
+  return <hr className="border-gray-800/60 my-3" />;
 }
 
-function SectionLabel({ label }: SectionProps) {
+function NavButton({
+                     item,
+                     active,
+                     onClick,
+                   }: {
+  item: NavItem;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
-    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-2 mb-3">
-      {label}
-    </p>
+      <button
+          onClick={onClick}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+              active
+                  ? 'bg-indigo-600/80 text-white border-indigo-500/50 shadow-md shadow-indigo-500/10'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50 border-transparent hover:border-gray-700/50'
+          }`}
+      >
+      <span className="text-base w-5 text-center flex-shrink-0">
+        {item.emoji}
+      </span>
+        <span className="truncate">{item.name}</span>
+      </button>
   );
 }
 
@@ -80,17 +87,15 @@ export default function Sidebar() {
     setIsAdmin(localStorage.getItem('role') === 'ADMIN');
     setIsLoggedIn(!!localStorage.getItem('token'));
     fetch(`${API_URL}/witze/kategorien`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setKategorien(data))
-      .catch(() => {});
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setKategorien)
+        .catch(() => {});
   }, []);
 
   const isKategorieActive = (path: string) => {
     if (typeof window === 'undefined') return false;
     const kategorie = new URLSearchParams(path.split('?')[1]).get('kategorie');
-    const current = new URLSearchParams(window.location.search).get(
-      'kategorie'
-    );
+    const current = new URLSearchParams(window.location.search).get('kategorie');
     if (!kategorie) return pathname === '/' && !current;
     return current === kategorie;
   };
@@ -105,63 +110,75 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-gray-900/80 backdrop-blur-xl border-r border-gray-800/50 fixed left-0 top-16 bottom-0 overflow-y-auto hidden md:block">
-      <div className="p-6 space-y-1">
-        {/* Navigation – nur für eingeloggte User */}
-        {isLoggedIn && (
-          <>
-            <SectionLabel label="Navigation" />
-            {NAV_ITEMS.map((item) => (
-              <NavButton
-                key={item.path}
-                item={item}
-                active={pathname === item.path}
-                onClick={() => router.push(item.path)}
-              />
-            ))}
-          </>
-        )}
+      <aside className="w-60 bg-gray-900/80 backdrop-blur-xl border-r border-gray-800/50 fixed left-0 top-16 bottom-0 overflow-y-auto hidden md:flex flex-col">
+        <div className="flex-1 p-4 space-y-0.5">
 
-        {/* Admin */}
-        {isAdmin && (
-          <>
-            <div className="pt-4 pb-1">
-              <hr className="border-gray-800/50 mb-4" />
-              <SectionLabel label="Admin" />
-            </div>
-            {ADMIN_ITEMS.map((item) => (
-              <NavButton
-                key={item.path}
-                item={item}
-                active={pathname === item.path}
-                onClick={() => router.push(item.path)}
-              />
-            ))}
-          </>
-        )}
+          {isLoggedIn && (
+              <>
+                {/* Hauptnavigation */}
+                <SectionLabel label="Menü" />
+                {NAV_ITEMS.map((item) => (
+                    <NavButton
+                        key={item.path}
+                        item={item}
+                        active={pathname === item.path}
+                        onClick={() => router.push(item.path)}
+                    />
+                ))}
 
-        {/* Kategorien – für alle sichtbar */}
-        <div className={isLoggedIn ? 'pt-4' : ''}>
-          {isLoggedIn && <hr className="border-gray-800/50 mb-4" />}
+                <Divider />
+
+                {/* Profil & Hilfe */}
+                <SectionLabel label="Account" />
+                {PROFIL_ITEMS.map((item) => (
+                    <NavButton
+                        key={item.path}
+                        item={item}
+                        active={pathname === item.path}
+                        onClick={() => router.push(item.path)}
+                    />
+                ))}
+              </>
+          )}
+
+          {/* Admin */}
+          {isAdmin && (
+              <>
+                <Divider />
+                <SectionLabel label="Admin" />
+                {ADMIN_ITEMS.map((item) => (
+                    <NavButton
+                        key={item.path}
+                        item={item}
+                        active={pathname === item.path}
+                        onClick={() => router.push(item.path)}
+                    />
+                ))}
+              </>
+          )}
+
+          {/* Kategorien */}
+          <Divider />
           <SectionLabel label="Kategorien" />
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {kategorienList.map((kat) => (
-              <button
-                key={kat.name}
-                onClick={() => router.push(kat.path)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                  isKategorieActive(kat.path)
-                    ? 'text-indigo-400 bg-indigo-900/30 border-indigo-500/30 font-semibold'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800/30 border-transparent hover:border-gray-700/50'
-                }`}
-              >
-                <span className="text-lg">{kat.emoji}</span>
-                <span className="truncate">{kat.name}</span>
-              </button>
+                <button
+                    key={kat.name}
+                    onClick={() => router.push(kat.path)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
+                        isKategorieActive(kat.path)
+                            ? 'text-indigo-400 bg-indigo-900/30 border-indigo-500/20'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-800/30 border-transparent'
+                    }`}
+                >
+              <span className="text-base w-5 text-center flex-shrink-0">
+                {kat.emoji}
+              </span>
+                  <span className="truncate">{kat.name}</span>
+                </button>
             ))}
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
   );
 }
