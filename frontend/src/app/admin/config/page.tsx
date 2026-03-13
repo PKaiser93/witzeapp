@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useRequireAdmin } from '@/hooks/useRequireAdmin';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -51,31 +52,47 @@ function Toggle({
 export default function AdminConfigPage() {
   const checking = useRequireAdmin();
   const router = useRouter();
+  const { accessToken, refreshToken } = useAuth();
+
   const [config, setConfig] = useState<AppConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
+  const loadConfig = useCallback(async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/config`,
+      accessToken,
+      refreshToken
+    );
+    if (res.ok) setConfig(await res.json());
+    setLoading(false);
+  }, [accessToken, refreshToken]);
+
   useEffect(() => {
     if (checking) return;
-    const load = async () => {
-      const res = await fetchWithAuth(`${API_URL}/admin/config`);
-      if (res.ok) setConfig(await res.json());
-      setLoading(false);
-    };
-    load();
-  }, [checking]);
+    if (!accessToken) return;
+    loadConfig();
+  }, [checking, accessToken, loadConfig]);
 
   const getValue = (key: string) =>
     config.find((c) => c.key === key)?.value ?? 'false';
 
   const toggleConfig = async (key: string) => {
+    if (!accessToken) return;
     const current = getValue(key);
     const newValue = current === 'true' ? 'false' : 'true';
-    const res = await fetchWithAuth(`${API_URL}/admin/config/${key}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: newValue }),
-    });
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/config/${key}`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: newValue }),
+      }
+    );
     if (res.ok)
       setConfig((prev) =>
         prev.map((c) => (c.key === key ? { ...c, value: newValue } : c))
@@ -86,19 +103,24 @@ export default function AdminConfigPage() {
     setConfig((prev) => prev.map((c) => (c.key === key ? { ...c, value } : c)));
 
   const saveText = async (key: string) => {
+    if (!accessToken) return;
     const value = getValue(key);
-    const res = await fetchWithAuth(`${API_URL}/admin/config/${key}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value }),
-    });
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/config/${key}`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      }
+    );
     if (res.ok) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
   };
 
-  // Feature-Flags: alles außer announcement-Keys
   const featureFlags = config.filter((c) => !ANNOUNCEMENT_KEYS.includes(c.key));
   const announcementActive = getValue('announcement_active') === 'true';
   const announcementText =
@@ -213,7 +235,9 @@ export default function AdminConfigPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-xs font-semibold ${announcementActive ? 'text-green-400' : 'text-gray-600'}`}
+                    className={`text-xs font-semibold ${
+                      announcementActive ? 'text-green-400' : 'text-gray-600'
+                    }`}
                   >
                     {announcementActive ? 'Aktiv' : 'Inaktiv'}
                   </span>
@@ -231,7 +255,6 @@ export default function AdminConfigPage() {
                   className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white text-sm resize-none h-28 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-gray-500 transition-all"
                 />
 
-                {/* Vorschau */}
                 {announcementText && (
                   <div className="px-4 py-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
                     <p className="text-indigo-300 text-xs font-semibold mb-1 uppercase tracking-wider">

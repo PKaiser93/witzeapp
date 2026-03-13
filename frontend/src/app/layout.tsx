@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { AppConfigProvider } from '@/context/AppConfigContext';
+import { AuthProvider } from '@/context/AuthContext'; // ← NEU
 
 const inter = Inter({
   variable: '--font-inter',
@@ -38,7 +39,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased bg-gradient-to-br from-slate-950 via-gray-950 to-slate-900 text-white`}
       >
-        <AppConfigProvider>{children}</AppConfigProvider>
+        <AppConfigProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </AppConfigProvider>
       </body>
     </html>
   );

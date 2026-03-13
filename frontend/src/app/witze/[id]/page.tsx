@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import BlueCheckmark from '@/components/BlueCheckmark';
 import ReportDialog from '@/components/ReportDialog';
+import { useAuth } from '@/context/AuthContext';
 
 interface Comment {
   id: number;
@@ -26,9 +27,11 @@ interface WitzDetail {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-export default function WitzDetail() {
+export default function WitzDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { accessToken, user, refreshToken } = useAuth();
+
   const [witz, setWitz] = useState<WitzDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,26 +40,21 @@ export default function WitzDetail() {
   const [commentText, setCommentText] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
 
   const id = params?.id ? parseInt(params.id as string, 10) : 0;
+  const isLoggedIn = !!user;
+  const currentUsername = user?.username ?? null;
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const username = localStorage.getItem('username');
-    setIsLoggedIn(!!token);
-    setCurrentUsername(username);
-  }, []);
+  const buildAuthHeader = (token: string | null) =>
+    token ? { Authorization: `Bearer ${token}` } : {};
 
   const loadComments = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/witze/${id}/comments`, { headers });
+    const res = await fetch(`${API_URL}/witze/${id}/comments`, {
+      headers: buildAuthHeader(accessToken),
+    });
     if (res.ok) setComments(await res.json());
-  }, [id]);
+  }, [id, accessToken]);
 
   const loadWitz = useCallback(async () => {
     if (!id || id <= 0) {
@@ -67,10 +65,9 @@ export default function WitzDetail() {
     try {
       setLoading(true);
       setError('');
-      const token = localStorage.getItem('token');
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(`${API_URL}/witze/${id}`, { headers });
+      const res = await fetch(`${API_URL}/witze/${id}`, {
+        headers: buildAuthHeader(accessToken),
+      });
       if (res.status === 404) {
         setError('Witz nicht gefunden');
         return;
@@ -85,31 +82,41 @@ export default function WitzDetail() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, accessToken]);
 
   const toggleLike = useCallback(async () => {
     if (!witz) return;
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isLoggedIn) {
       router.push('/login');
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/witze/${id}/like`, {
+      let tokenToUse = accessToken;
+      let res = await fetch(`${API_URL}/witze/${id}/like`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeader(tokenToUse),
       });
+      if (res.status === 401 && refreshToken) {
+        const newToken = await refreshToken();
+        if (!newToken) {
+          router.push('/login');
+          return;
+        }
+        res = await fetch(`${API_URL}/witze/${id}/like`, {
+          method: 'PATCH',
+          headers: buildAuthHeader(newToken),
+        });
+      }
       if (res.ok) await loadWitz();
     } catch {
       setLikeError('Like konnte nicht gespeichert werden.');
       setTimeout(() => setLikeError(null), 4000);
     }
-  }, [id, witz, router, loadWitz]);
+  }, [id, witz, router, accessToken, refreshToken, loadWitz, isLoggedIn]);
 
   const postComment = async () => {
     if (!commentText.trim()) return;
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isLoggedIn) {
       router.push('/login');
       return;
     }
@@ -118,7 +125,7 @@ export default function WitzDetail() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        ...buildAuthHeader(accessToken),
       },
       body: JSON.stringify({ text: commentText.trim() }),
     });
@@ -130,10 +137,13 @@ export default function WitzDetail() {
   };
 
   const deleteComment = async (commentId: number) => {
-    const token = localStorage.getItem('token');
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
     const res = await fetch(`${API_URL}/witze/${id}/comments/${commentId}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: buildAuthHeader(accessToken),
     });
     if (res.ok) await loadComments();
   };
@@ -186,7 +196,6 @@ export default function WitzDetail() {
   return (
     <AppLayout>
       <div className="max-w-2xl mx-auto space-y-4 py-8 px-4">
-        {/* Zurück */}
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
@@ -194,9 +203,7 @@ export default function WitzDetail() {
           ← Zurück
         </button>
 
-        {/* Witz Card */}
         <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6 shadow-2xl">
-          {/* Autor */}
           <div className="flex items-center gap-3 mb-5">
             <div
               onClick={() =>
@@ -252,14 +259,12 @@ export default function WitzDetail() {
             )}
           </div>
 
-          {/* Text */}
           <div className="bg-gray-800/30 rounded-2xl p-5 mb-5 border border-gray-700/30">
             <p className="text-white text-xl leading-relaxed font-medium">
               "{witz.text}"
             </p>
           </div>
 
-          {/* Liker */}
           {witz.likes > 0 && witz.likerNames && witz.likerNames.length > 0 && (
             <p className="text-gray-500 text-xs mb-4">
               <span className="text-gray-400">
@@ -282,7 +287,6 @@ export default function WitzDetail() {
 
           <div className="border-t border-gray-800 mb-4" />
 
-          {/* Aktionen */}
           <div className="flex items-center gap-2">
             <button
               onClick={toggleLike}
@@ -330,7 +334,6 @@ export default function WitzDetail() {
           </div>
         </div>
 
-        {/* Kommentare */}
         <div
           id="kommentare"
           className="bg-gray-900/80 backdrop-blur-xl border border-gray-800/50 rounded-3xl p-6"
@@ -342,7 +345,6 @@ export default function WitzDetail() {
             </span>
           </h2>
 
-          {/* Kommentar schreiben */}
           {isLoggedIn ? (
             <div className="flex gap-3 mb-6">
               <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
@@ -383,7 +385,6 @@ export default function WitzDetail() {
             </div>
           )}
 
-          {/* Kommentar Liste */}
           <div className="space-y-3">
             {comments.length === 0 && (
               <div className="text-center py-8">

@@ -8,6 +8,7 @@ import ChangeUsernameModal from '@/components/ChangeUsernameModal';
 import { useAppConfig } from '@/context/AppConfigContext';
 import BadgeList from '@/components/BadgeList';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -40,7 +41,7 @@ interface ProfileData {
   bio: string;
   currentStreak: number;
   longestStreak: number;
-  isBlueVerified: boolean; // ← NEU
+  isBlueVerified: boolean;
 }
 
 interface Warning {
@@ -76,14 +77,11 @@ const ROLE_CONFIG: Record<
   },
 };
 
-function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export default function ProfilPage() {
   const router = useRouter();
   const { feature_delete_account } = useAppConfig();
+  const { accessToken, refreshToken, user } = useAuth();
+
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -97,6 +95,7 @@ export default function ProfilPage() {
   const [editingBio, setEditingBio] = useState(false);
   const [bioText, setBioText] = useState('');
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [badgesLoaded, setBadgesLoaded] = useState(false);
   const [application, setApplication] = useState<any>(null);
   const [applying, setApplying] = useState(false);
   const [applyMessage, setApplyMessage] = useState('');
@@ -106,68 +105,94 @@ export default function ProfilPage() {
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  const isLoggedIn = !!user;
+
+  const loadProfile = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const [res, warningsRes] = await Promise.all([
+        fetchWithAuth(`${API_URL}/profile`, accessToken, refreshToken),
+        fetchWithAuth(`${API_URL}/profile/warnings`, accessToken, refreshToken),
+      ]);
+
+      if (res.ok) {
+        const profileData = await res.json();
+        setProfile(profileData);
+
+        fetchWithAuth(
+          `${API_URL}/follow/${profileData.id}/counts`,
+          accessToken,
+          refreshToken
+        )
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => data && setFollowCounts(data))
+          .catch(() => {});
+      }
+
+      if (warningsRes.ok) setWarnings(await warningsRes.json());
+
+      fetchWithAuth(`${API_URL}/profile/badges`, accessToken, refreshToken)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => {
+          setBadges(data);
+          setBadgesLoaded(true);
+        })
+        .catch(() => {
+          setBadgesLoaded(true);
+        });
+
+      fetchWithAuth(
+        `${API_URL}/verified-application/me`,
+        accessToken,
+        refreshToken
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setApplication)
+        .catch(() => {});
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, refreshToken]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
+    if (!accessToken) return;
+    loadProfile();
+  }, [isLoggedIn, accessToken, loadProfile, router]);
+
   const saveBio = async () => {
-    const token = localStorage.getItem('token');
-    const res = await fetchWithAuth(`${API_URL}/profile/bio`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bio: bioText }),
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/profile/bio`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio: bioText }),
+      }
+    );
     if (res.ok) {
       setEditingBio(false);
       setProfile((prev) => (prev ? { ...prev, bio: bioText } : prev));
     }
   };
 
-  const loadProfile = useCallback(async () => {
-    try {
-      const [res, warningsRes] = await Promise.all([
-        fetchWithAuth(`${API_URL}/profile`),
-        fetchWithAuth(`${API_URL}/profile/warnings`),
-      ]);
-      if (res.ok) {
-        const profileData = await res.json();
-        setProfile(profileData);
-        const token = localStorage.getItem('token');
-        fetchWithAuth(`${API_URL}/follow/${profileData.id}/counts`)
-            .then((r) => r.json())
-            .then(setFollowCounts)
-            .catch(() => {});
-      }
-      if (warningsRes.ok) setWarnings(await warningsRes.json());
-
-      fetchWithAuth(`${API_URL}/profile/badges`)
-          .then((r) => r.json())
-          .then(setBadges)
-          .catch(() => {});
-
-      // Verified-Bewerbung laden
-      fetchWithAuth(`${API_URL}/verified-application/me`)
-          .then((r) => r.ok ? r.json() : null)
-          .then(setApplication)
-          .catch(() => {});
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!localStorage.getItem('token')) {
-      router.push('/login');
-      return;
-    }
-    loadProfile();
-  }, [loadProfile, router]);
-
-  // REST der Funktionen unverändert...
   const saveEdit = async () => {
-    if (!editingId || !editText.trim()) return;
-    const res = await fetchWithAuth(`${API_URL}/profile/witz/${editingId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: editText.trim() }),
-    });
+    if (!editingId || !editText.trim() || !accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/profile/witz/${editingId}`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: editText.trim() }),
+      }
+    );
     if (!res.ok) {
       setError('Fehler beim Speichern.');
       return;
@@ -179,10 +204,15 @@ export default function ProfilPage() {
   };
 
   const deleteWitz = async (id: number) => {
-    if (!confirm('Witz wirklich löschen?')) return;
-    const res = await fetchWithAuth(`${API_URL}/profile/witz/${id}`, {
-      method: 'DELETE',
-    });
+    if (!confirm('Witz wirklich löschen?') || !accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/profile/witz/${id}`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'DELETE',
+      }
+    );
     if (!res.ok) {
       setError('Fehler beim Löschen.');
       setTimeout(() => setError(null), 4000);
@@ -193,8 +223,12 @@ export default function ProfilPage() {
   };
 
   const exportData = async () => {
-    const token = localStorage.getItem('token');
-    const res = await fetchWithAuth(`${API_URL}/profile/export`);
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/profile/export`,
+      accessToken,
+      refreshToken
+    );
     if (res.ok) {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -208,6 +242,16 @@ export default function ProfilPage() {
 
   const username = profile?.username ?? '';
   const badge = ROLE_CONFIG[profile?.role ?? 'USER'] ?? ROLE_CONFIG.USER;
+
+  if (loading || !profile) {
+    return (
+      <AppLayout>
+        <div className="max-w-3xl mx-auto py-16 flex justify-center">
+          <div className="animate-spin w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -281,8 +325,7 @@ export default function ProfilPage() {
             {/* Name + Rolle */}
             <div className="flex items-center gap-3 mb-1 flex-wrap">
               <h1 className="text-2xl font-black text-white">@{username}</h1>
-              {/* Blauer Haken neben Username */}
-              {profile?.isBlueVerified && (
+              {profile.isBlueVerified && (
                 <svg
                   title="Verifizierter Account"
                   xmlns="http://www.w3.org/2000/svg"
@@ -308,7 +351,7 @@ export default function ProfilPage() {
                 </span>
               )}
             </div>
-            <p className="text-gray-500 text-sm">{profile?.email}</p>
+            <p className="text-gray-500 text-sm">{profile.email}</p>
 
             {/* Bio */}
             <div className="mt-3">
@@ -333,7 +376,7 @@ export default function ProfilPage() {
                     <button
                       onClick={() => {
                         setEditingBio(false);
-                        setBioText(profile?.bio ?? '');
+                        setBioText(profile.bio ?? '');
                       }}
                       className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition-all"
                     >
@@ -345,14 +388,14 @@ export default function ProfilPage() {
                 <div
                   onClick={() => {
                     setEditingBio(true);
-                    setBioText(profile?.bio ?? '');
+                    setBioText(profile.bio ?? '');
                   }}
                   className="group flex items-start gap-2 cursor-pointer"
                 >
                   <p
-                    className={`text-sm ${profile?.bio ? 'text-gray-300' : 'text-gray-600 italic'}`}
+                    className={`text-sm ${profile.bio ? 'text-gray-300' : 'text-gray-600 italic'}`}
                   >
-                    {profile?.bio || 'Klicke um eine Bio hinzuzufügen...'}
+                    {profile.bio || 'Klicke um eine Bio hinzuzufügen...'}
                   </p>
                   <span className="text-gray-600 opacity-0 group-hover:opacity-100 transition-all text-xs">
                     ✏️
@@ -370,10 +413,10 @@ export default function ProfilPage() {
           {/* Stats */}
           <div className="grid grid-cols-4 border-t border-gray-800/50">
             {[
-              { label: 'Witze', value: profile?.witze.length ?? 0 },
-              { label: 'Likes', value: profile?.likesReceived ?? 0 },
+              { label: 'Witze', value: profile.witze.length },
+              { label: 'Likes', value: profile.likesReceived },
               { label: 'Follower', value: followCounts.followers },
-              { label: 'Rang', value: profile?.rang ?? '🥉 Neuling' },
+              { label: 'Rang', value: profile.rang ?? '🥉 Neuling' },
             ].map((s, i) => (
               <div
                 key={i}
@@ -386,24 +429,24 @@ export default function ProfilPage() {
           </div>
 
           {/* Streak Banner */}
-          {(profile?.currentStreak ?? 0) > 0 && (
+          {profile.currentStreak > 0 && (
             <div className="flex items-center justify-between px-6 py-3 bg-orange-500/10 border-t border-orange-500/20">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🔥</span>
                 <div>
                   <p className="text-orange-300 text-sm font-bold">
-                    {profile?.currentStreak}{' '}
-                    {profile?.currentStreak === 1 ? 'Tag' : 'Tage'} in Folge
+                    {profile.currentStreak}{' '}
+                    {profile.currentStreak === 1 ? 'Tag' : 'Tage'} in Folge
                   </p>
                   <p className="text-orange-400/60 text-xs">
-                    Längster Streak: {profile?.longestStreak}{' '}
-                    {profile?.longestStreak === 1 ? 'Tag' : 'Tage'}
+                    Längster Streak: {profile.longestStreak}{' '}
+                    {profile.longestStreak === 1 ? 'Tag' : 'Tage'}
                   </p>
                 </div>
               </div>
               <div className="flex gap-1">
                 {Array.from({
-                  length: Math.min(profile?.currentStreak ?? 0, 7),
+                  length: Math.min(profile.currentStreak ?? 0, 7),
                 }).map((_, i) => (
                   <div
                     key={i}
@@ -416,98 +459,109 @@ export default function ProfilPage() {
         </div>
 
         {/* Verified Badge Bewerbung */}
-        {profile?.isBlueVerified ? (
-          <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl">
-            <span className="text-2xl">✅</span>
-            <div>
-              <p className="font-bold text-blue-300">Verifizierter Account</p>
-              <p className="text-sm text-blue-400/70">
-                Du hast den blauen Haken erhalten
-              </p>
+        {badgesLoaded &&
+          (profile.isBlueVerified ? (
+            <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl">
+              <span className="text-2xl">✅</span>
+              <div>
+                <p className="font-bold text-blue-300">Verifizierter Account</p>
+                <p className="text-sm text-blue-400/70">
+                  Du hast den blauen Haken erhalten
+                </p>
+              </div>
             </div>
-          </div>
-        ) : badges.some((b) => b.key === 'meister') ? (
-          <div className="p-4 bg-gray-900/80 border border-gray-800/50 rounded-2xl">
-            <h3 className="font-bold text-white mb-2">🔵 Verified werden</h3>
-            {!application && (
-              <>
-                <p className="text-sm text-gray-400 mb-3">
-                  Als Meister kannst du dich für den blauen Haken bewerben.
-                </p>
-                <textarea
-                  value={applyMessage}
-                  onChange={(e) => setApplyMessage(e.target.value)}
-                  placeholder="Warum möchtest du verifiziert werden? (optional)"
-                  className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl p-3 text-sm text-white resize-none placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 mb-2"
-                  rows={3}
-                />
-                <button
-                  onClick={async () => {
-                    setApplying(true);
-                    const token = localStorage.getItem('token');
-                    const res = await fetchWithAuth(`${API_URL}/verified-application`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ message: applyMessage }),
-                    });
-                    if (res.ok) setApplication(await res.json());
-                    setApplying(false);
-                  }}
-                  disabled={applying}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
-                >
-                  {applying ? 'Wird eingereicht...' : 'Jetzt bewerben'}
-                </button>
-              </>
-            )}
-            {application?.status === 'PENDING' && (
-              <div className="flex items-center gap-3">
-                <span className="text-xl">⏳</span>
-                <div className="flex-1">
-                  <p className="font-medium text-yellow-300">
-                    Bewerbung ausstehend
+          ) : badges.some((b) => b.key === 'meister') ? (
+            <div className="p-4 bg-gray-900/80 border border-gray-800/50 rounded-2xl">
+              <h3 className="font-bold text-white mb-2">🔵 Verified werden</h3>
+              {!application && (
+                <>
+                  <p className="text-sm text-gray-400 mb-3">
+                    Als Meister kannst du dich für den blauen Haken bewerben.
                   </p>
-                  <p className="text-xs text-gray-500">
-                    Eingereicht am{' '}
-                    {new Date(application.createdAt).toLocaleDateString(
-                      'de-DE'
-                    )}
-                  </p>
+                  <textarea
+                    value={applyMessage}
+                    onChange={(e) => setApplyMessage(e.target.value)}
+                    placeholder="Warum möchtest du verifiziert werden? (optional)"
+                    className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl p-3 text-sm text-white resize-none placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 mb-2"
+                    rows={3}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!accessToken) return;
+                      setApplying(true);
+                      const res = await fetchWithAuth(
+                        `${API_URL}/verified-application`,
+                        accessToken,
+                        refreshToken,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ message: applyMessage }),
+                        }
+                      );
+                      if (res.ok) setApplication(await res.json());
+                      setApplying(false);
+                    }}
+                    disabled={applying}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all"
+                  >
+                    {applying ? 'Wird eingereicht...' : 'Jetzt bewerben'}
+                  </button>
+                </>
+              )}
+              {application?.status === 'PENDING' && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">⏳</span>
+                  <div className="flex-1">
+                    <p className="font-medium text-yellow-300">
+                      Bewerbung ausstehend
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Eingereicht am{' '}
+                      {new Date(application.createdAt).toLocaleDateString(
+                        'de-DE'
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!accessToken) return;
+                      await fetchWithAuth(
+                        `${API_URL}/verified-application/me`,
+                        accessToken,
+                        refreshToken,
+                        {
+                          method: 'DELETE',
+                        }
+                      );
+                      setApplication(null);
+                    }}
+                    className="text-red-400 text-sm hover:underline"
+                  >
+                    Zurückziehen
+                  </button>
                 </div>
-                <button
-                  onClick={async () => {
-                    const token = localStorage.getItem('token');
-                    await fetchWithAuth(`${API_URL}/verified-application/me`, {
-                      method: 'DELETE',
-                    });
-                    setApplication(null);
-                  }}
-                  className="text-red-400 text-sm hover:underline"
-                >
-                  Zurückziehen
-                </button>
-              </div>
-            )}
-            {application?.status === 'REJECTED' && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-                <p className="font-medium text-red-300">
-                  ❌ Bewerbung abgelehnt
-                </p>
-                {application.adminNote && (
-                  <p className="text-sm text-red-400/80 mt-1">
-                    Grund: {application.adminNote}
+              )}
+              {application?.status === 'REJECTED' && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                  <p className="font-medium text-red-300">
+                    ❌ Bewerbung abgelehnt
                   </p>
-                )}
-                <button
-                  onClick={() => setApplication(null)}
-                  className="mt-2 text-sm text-blue-400 hover:underline"
-                >
-                  Erneut bewerben
-                </button>
-              </div>
-            )}
-          </div>
-        ) : null}
+                  {application.adminNote && (
+                    <p className="text-sm text-red-400/80 mt-1">
+                      Grund: {application.adminNote}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => setApplication(null)}
+                    className="mt-2 text-sm text-blue-400 hover:underline"
+                  >
+                    Erneut bewerben
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null)}
 
         {/* Tabs */}
         <div className="flex gap-2">
@@ -519,7 +573,7 @@ export default function ProfilPage() {
                 : 'text-gray-400 hover:text-white bg-gray-900/80 border-gray-800/50'
             }`}
           >
-            📝 Meine Witze ({profile?.witze.length ?? 0})
+            📝 Meine Witze ({profile.witze.length})
           </button>
           {warnings.length > 0 && (
             <button
@@ -552,12 +606,7 @@ export default function ProfilPage() {
                 ➕ Neuer Witz
               </button>
             </div>
-            {loading && (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full" />
-              </div>
-            )}
-            {!loading && (profile?.witze.length ?? 0) === 0 && (
+            {profile.witze.length === 0 && (
               <div className="text-center py-12">
                 <span className="text-5xl block mb-4">📝</span>
                 <p className="text-gray-400 mb-2">Noch keine Witze</p>
@@ -570,7 +619,7 @@ export default function ProfilPage() {
               </div>
             )}
             <div className="space-y-3">
-              {profile?.witze.map((w) => (
+              {profile.witze.map((w) => (
                 <div
                   key={w.id}
                   className="group p-4 bg-gray-800/50 hover:bg-gray-800/80 border border-gray-700/50 rounded-2xl transition-all"

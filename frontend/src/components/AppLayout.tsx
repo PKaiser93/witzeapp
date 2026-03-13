@@ -1,8 +1,10 @@
+'use client';
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppConfig } from '@/context/AppConfigContext';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useAuthUser } from '@/hooks/useAuthUser';
+import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 import EmailVerificationBanner from '@/components/EmailVerificationBanner';
@@ -13,6 +15,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 function MaintenanceGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { maintenance } = useAppConfig();
+  const { accessToken, refreshToken } = useAuth();
 
   useEffect(() => {
     if (maintenance) {
@@ -20,16 +23,15 @@ function MaintenanceGuard({ children }: { children: ReactNode }) {
       return;
     }
 
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!accessToken) return;
 
-    fetchWithAuth(`${API_URL}/auth/me/ban-status`)
+    fetchWithAuth(`${API_URL}/auth/me/ban-status`, accessToken, refreshToken)
       .then((res) => res.json())
       .then((data) => {
         if (data.banned) router.push('/banned');
       })
       .catch(() => {});
-  }, [router, maintenance]);
+  }, [router, maintenance, accessToken, refreshToken]);
 
   return <>{children}</>;
 }

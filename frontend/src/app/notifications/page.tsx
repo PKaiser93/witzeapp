@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -52,23 +53,23 @@ function getTypeConfig(type: string) {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { user, accessToken, refreshToken } = useAuth();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    loadNotifications();
-  }, []);
+  const isLoggedIn = !!user;
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
+    if (!accessToken || !isLoggedIn) return;
     setLoading(true);
     try {
-      const res = await fetchWithAuth(`${API_URL}/notifications`);
+      const res = await fetchWithAuth(
+        `${API_URL}/notifications`,
+        accessToken,
+        refreshToken
+      );
       if (res.ok) {
         const data: Notification[] = await res.json();
         setNotifications(data);
@@ -77,25 +78,42 @@ export default function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [accessToken, refreshToken, isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
+    if (!accessToken) return;
+    loadNotifications();
+  }, [isLoggedIn, accessToken, loadNotifications, router]);
 
   const markAllRead = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    await fetchWithAuth(`${API_URL}/notifications/read-all`, {
-      method: 'PATCH',
-    });
+    if (!accessToken || !isLoggedIn) return;
+    await fetchWithAuth(
+      `${API_URL}/notifications/read-all`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'PATCH',
+      }
+    );
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);
   };
 
   const handleClick = async (notif: Notification) => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!accessToken || !isLoggedIn) return;
     if (!notif.read) {
-      await fetchWithAuth(`${API_URL}/notifications/${notif.id}/read`, {
-        method: 'PATCH',
-      });
+      await fetchWithAuth(
+        `${API_URL}/notifications/${notif.id}/read`,
+        accessToken,
+        refreshToken,
+        {
+          method: 'PATCH',
+        }
+      );
       setNotifications((prev) =>
         prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
       );
@@ -168,7 +186,11 @@ export default function NotificationsPage() {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`text-sm ${!notif.read ? 'text-white font-medium' : 'text-gray-300'}`}
+                        className={`text-sm ${
+                          !notif.read
+                            ? 'text-white font-medium'
+                            : 'text-gray-300'
+                        }`}
                       >
                         {notif.message}
                       </p>

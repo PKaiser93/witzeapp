@@ -1,21 +1,30 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useAuth } from '@/context/AuthContext';
 import { useAuthUser } from '@/hooks/useAuthUser';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export default function VerifyPendingPage() {
   const router = useRouter();
+  const { accessToken, refreshToken, logout } = useAuth();
   const user = useAuthUser();
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Wenn schon verifiziert oder kein User → weg von hier
+  useEffect(() => {
+    if (!user) return;
+    if (user.isVerified) {
+      router.push('/');
+    }
+  }, [user, router]);
+
   const resend = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!accessToken) {
       router.push('/login');
       return;
     }
@@ -24,9 +33,12 @@ export default function VerifyPendingPage() {
     setError(null);
 
     try {
-      const res = await fetchWithAuth(`${API_URL}/auth/resend-verification`, {
-        method: 'POST',
-      });
+      const res = await fetchWithAuth(
+        `${API_URL}/auth/resend-verification`,
+        accessToken,
+        refreshToken,
+        { method: 'POST' }
+      );
 
       if (res.ok) {
         setSent(true);
@@ -41,8 +53,8 @@ export default function VerifyPendingPage() {
     }
   };
 
-  const logout = () => {
-    localStorage.clear();
+  const handleLogout = async () => {
+    await logout();
     router.push('/login');
   };
 
@@ -95,7 +107,7 @@ export default function VerifyPendingPage() {
         )}
 
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="w-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white font-medium py-3 rounded-xl transition-all text-sm"
         >
           Ausloggen

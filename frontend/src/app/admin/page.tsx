@@ -1,8 +1,9 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import { useAuth } from '@/context/AuthContext';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -13,72 +14,69 @@ interface Stats {
   likeCount: number;
 }
 
-function getAuthHeader() {
-  const token =
-    typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export default function AdminDashboard() {
   const router = useRouter();
+  const { user, accessToken, refreshToken, loading } = useAuth();
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [reportCount, setReportCount] = useState(0);
   const [pendingVerifiedCount, setPendingVerifiedCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [localLoading, setLocalLoading] = useState(true);
+
+  const isAdmin = user?.role === 'ADMIN';
+
+  const load = useCallback(async () => {
+    if (!accessToken) return;
+    setLocalLoading(true);
+    try {
+      const [statsRes, reportsRes, verifiedRes] = await Promise.all([
+        fetchWithAuth(`${API_URL}/admin/stats`, accessToken, refreshToken),
+        fetchWithAuth(`${API_URL}/admin/reports`, accessToken, refreshToken),
+        fetchWithAuth(
+          `${API_URL}/verified-application/admin?status=PENDING`,
+          accessToken,
+          refreshToken
+        ),
+      ]);
+
+      // bei 401/403: zurück zur Startseite
+      if (
+        [statsRes.status, reportsRes.status, verifiedRes.status].some((s) =>
+          [401, 403].includes(s)
+        )
+      ) {
+        router.push('/');
+        return;
+      }
+
+      if (statsRes.ok) {
+        setStats(await statsRes.json());
+      }
+
+      if (reportsRes.ok) {
+        const data = await reportsRes.json();
+        setReportCount(Array.isArray(data) ? data.length : 0);
+      }
+
+      if (verifiedRes.ok) {
+        const data = await verifiedRes.json();
+        setPendingVerifiedCount(Array.isArray(data) ? data.length : 0);
+      }
+    } finally {
+      setLocalLoading(false);
+    }
+  }, [accessToken, refreshToken, router]);
 
   useEffect(() => {
-    // client-side guard: kein Admin → zurück zur Startseite
-    const role = localStorage.getItem('role');
-    if (role !== 'ADMIN') {
+    // Warten bis globaler Auth-Status feststeht
+    if (loading) return;
+    // kein User oder kein Admin → raus
+    if (!user || !isAdmin) {
       router.push('/');
       return;
     }
-
-    const load = async () => {
-      try {
-        const headers = getAuthHeader();
-
-        const [statsRes, reportsRes, verifiedRes] = await Promise.all([
-          fetch(`${API_URL}/admin/stats`, { headers }),
-          fetch(`${API_URL}/admin/reports`, { headers }),
-          fetch(`${API_URL}/verified-application/admin?status=PENDING`, {
-            headers,
-          }),
-        ]);
-
-        if (statsRes.ok) {
-          setStats(await statsRes.json());
-        }
-
-        if (reportsRes.ok) {
-          const data = await reportsRes.json();
-          setReportCount(data.length);
-        }
-
-        if (verifiedRes.ok) {
-          const data = await verifiedRes.json();
-          setPendingVerifiedCount(data.length);
-        }
-
-        // bei 401/403: zurück zur Startseite, Token ggf. löschen
-        if (
-          statsRes.status === 401 ||
-          statsRes.status === 403 ||
-          reportsRes.status === 401 ||
-          reportsRes.status === 403
-        ) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('role');
-          router.push('/');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
-  }, [router]);
+  }, [loading, user, isAdmin, load, router]);
 
   const QUICK_LINKS = [
     {
@@ -127,7 +125,7 @@ export default function AdminDashboard() {
     },
   ];
 
-  if (loading) {
+  if (loading || localLoading) {
     return (
       <AppLayout>
         <div className="space-y-6">

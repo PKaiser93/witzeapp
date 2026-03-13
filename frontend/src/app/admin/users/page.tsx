@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -7,6 +7,7 @@ import BanModal from '@/components/BanModal';
 import WarnModal from '@/components/WarnModal';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useRequireAdmin } from '@/hooks/useRequireAdmin';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -42,7 +43,9 @@ const ROLE_EMOJI: Record<string, string> = {
 
 export default function AdminUsersPage() {
   const checking = useRequireAdmin();
+  const { accessToken, refreshToken } = useAuth();
   const router = useRouter();
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -62,58 +65,80 @@ export default function AdminUsersPage() {
     username: string;
   } | null>(null);
 
+  const loadUsers = useCallback(async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/users`,
+      accessToken,
+      refreshToken
+    );
+    if (res.ok) {
+      setUsers(await res.json());
+    }
+    setLoading(false);
+  }, [accessToken, refreshToken]);
+
   useEffect(() => {
     if (checking) return;
-    const load = async () => {
-      const res = await fetchWithAuth(`${API_URL}/admin/users`);
-      if (res.ok) setUsers(await res.json());
-      setLoading(false);
-    };
-    load();
-  }, [checking]);
+    if (!accessToken) return;
+    loadUsers();
+  }, [checking, accessToken, loadUsers]);
 
   // Dropdown schließen bei Klick außerhalb
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if ((e.target as HTMLElement).closest('.actions-menu')) return;
       setOpenActionsMenu(null);
+      setDropdownPos(null);
     };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, []);
 
-  const loadUsers = async () => {
-    const res = await fetchWithAuth(`${API_URL}/admin/users`);
-    if (res.ok) setUsers(await res.json());
-    setLoading(false);
-  };
-
   const updateRole = async (userId: number, role: string) => {
-    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/role`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
-    });
-    if (res.ok)
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/users/${userId}/role`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      }
+    );
+    if (res.ok) {
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role } : u))
       );
+    }
   };
 
   const deleteUser = async (userId: number, username: string) => {
     if (!confirm(`User @${username} wirklich löschen?`)) return;
-    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}`, {
-      method: 'DELETE',
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/users/${userId}`,
+      accessToken,
+      refreshToken,
+      { method: 'DELETE' }
+    );
     if (res.ok) setUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
   const banUser = async (userId: number, reason: string, duration: string) => {
-    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/ban`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, duration }),
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/users/${userId}/ban`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, duration }),
+      }
+    );
     if (res.ok) {
       setBanModal(null);
       loadUsers();
@@ -121,18 +146,28 @@ export default function AdminUsersPage() {
   };
 
   const unbanUser = async (userId: number) => {
-    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/unban`, {
-      method: 'PATCH',
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/users/${userId}/unban`,
+      accessToken,
+      refreshToken,
+      { method: 'PATCH' }
+    );
     if (res.ok) loadUsers();
   };
 
   const warnUser = async (userId: number, reason: string) => {
-    const res = await fetchWithAuth(`${API_URL}/admin/users/${userId}/warn`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason }),
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/users/${userId}/warn`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      }
+    );
     if (res.ok) setWarnModal(null);
   };
 
@@ -142,9 +177,11 @@ export default function AdminUsersPage() {
       return;
     }
     setExpandedUser(userId);
-    if (!warningsMap[userId]) {
+    if (!warningsMap[userId] && accessToken) {
       const res = await fetchWithAuth(
-        `${API_URL}/admin/users/${userId}/warnings`
+        `${API_URL}/admin/users/${userId}/warnings`,
+        accessToken,
+        refreshToken
       );
       if (res.ok) {
         const data = await res.json();
@@ -154,9 +191,13 @@ export default function AdminUsersPage() {
   };
 
   const deleteWarning = async (userId: number, warningId: number) => {
-    const res = await fetchWithAuth(`${API_URL}/admin/warnings/${warningId}`, {
-      method: 'DELETE',
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/warnings/${warningId}`,
+      accessToken,
+      refreshToken,
+      { method: 'DELETE' }
+    );
     if (res.ok)
       setWarningsMap((prev) => ({
         ...prev,
@@ -303,13 +344,15 @@ export default function AdminUsersPage() {
                     {/* Rolle */}
                     <div className="col-span-2 flex justify-center">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium border ${ROLE_COLORS[u.role] ?? ROLE_COLORS.USER}`}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                          ROLE_COLORS[u.role] ?? ROLE_COLORS.USER
+                        }`}
                       >
                         {ROLE_EMOJI[u.role]} {u.role}
                       </span>
                     </div>
 
-                    {/* Aktivität im Header-Row */}
+                    {/* Aktivität */}
                     <div className="col-span-2 text-center">
                       <p className="text-white text-sm font-semibold">
                         {u.jokesCount}

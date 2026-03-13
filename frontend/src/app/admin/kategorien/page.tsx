@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useRequireAdmin } from '@/hooks/useRequireAdmin';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -16,6 +17,8 @@ interface Kategorie {
 export default function AdminKategorienPage() {
   const checking = useRequireAdmin();
   const router = useRouter();
+  const { accessToken, refreshToken } = useAuth();
+
   const [kategorien, setKategorien] = useState<Kategorie[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -25,28 +28,44 @@ export default function AdminKategorienPage() {
   const [newEmoji, setNewEmoji] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (checking) return;
-    loadKategorien();
-  }, [checking]);
-
-  const loadKategorien = async () => {
+  const loadKategorien = useCallback(async () => {
+    if (!accessToken) return;
     try {
-      const res = await fetchWithAuth(`${API_URL}/kategorien`);
+      setLoading(true);
+      const res = await fetchWithAuth(
+        `${API_URL}/kategorien`,
+        accessToken,
+        refreshToken
+      );
       if (!res.ok) return;
       setKategorien(await res.json());
     } finally {
       setLoading(false);
     }
-  };
+  }, [accessToken, refreshToken]);
+
+  useEffect(() => {
+    if (checking) return;
+    if (!accessToken) return;
+    loadKategorien();
+  }, [checking, accessToken, loadKategorien]);
 
   const create = async () => {
+    if (!accessToken) return;
     if (!newName.trim() || !newEmoji.trim()) return;
-    const res = await fetchWithAuth(`${API_URL}/kategorien`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim(), emoji: newEmoji.trim() }),
-    });
+    const res = await fetchWithAuth(
+      `${API_URL}/kategorien`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newName.trim(),
+          emoji: newEmoji.trim(),
+        }),
+      }
+    );
     if (res.ok) {
       setNewName('');
       setNewEmoji('');
@@ -58,12 +77,21 @@ export default function AdminKategorienPage() {
   };
 
   const update = async (id: number) => {
+    if (!accessToken) return;
     if (!editName.trim() || !editEmoji.trim()) return;
-    const res = await fetchWithAuth(`${API_URL}/kategorien/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editName.trim(), emoji: editEmoji.trim() }),
-    });
+    const res = await fetchWithAuth(
+      `${API_URL}/kategorien/${id}`,
+      accessToken,
+      refreshToken,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName.trim(),
+          emoji: editEmoji.trim(),
+        }),
+      }
+    );
     if (res.ok) {
       setEditingId(null);
       loadKategorien();
@@ -72,9 +100,13 @@ export default function AdminKategorienPage() {
 
   const deleteKategorie = async (id: number, name: string) => {
     if (!confirm(`Kategorie "${name}" wirklich löschen?`)) return;
-    const res = await fetchWithAuth(`${API_URL}/kategorien/${id}`, {
-      method: 'DELETE',
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/kategorien/${id}`,
+      accessToken,
+      refreshToken,
+      { method: 'DELETE' }
+    );
     if (res.ok) loadKategorien();
   };
 

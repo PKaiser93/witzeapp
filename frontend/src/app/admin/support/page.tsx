@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useRequireAdmin } from '@/hooks/useRequireAdmin';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -20,6 +21,8 @@ type SupportMessage = {
 
 export default function AdminSupportPage() {
   const checking = useRequireAdmin();
+  const { accessToken, refreshToken } = useAuth();
+
   const [items, setItems] = useState<SupportMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SupportMessage | null>(null);
@@ -27,20 +30,25 @@ export default function AdminSupportPage() {
   const [searchTicketId, setSearchTicketId] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  const load = useCallback(async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    const res = await fetchWithAuth(
+      `${API_URL}/support?status=${statusFilter}`,
+      accessToken,
+      refreshToken
+    );
+    if (res.ok) {
+      setItems(await res.json());
+    }
+    setLoading(false);
+  }, [accessToken, refreshToken, statusFilter]);
+
   useEffect(() => {
     if (checking) return;
-    const load = async () => {
-      setLoading(true);
-      const res = await fetchWithAuth(
-        `${API_URL}/support?status=${statusFilter}`
-      );
-      if (res.ok) {
-        setItems(await res.json());
-      }
-      setLoading(false);
-    };
+    if (!accessToken) return;
     load();
-  }, [checking, statusFilter]);
+  }, [checking, accessToken, load]);
 
   if (checking) {
     return (
@@ -75,11 +83,14 @@ export default function AdminSupportPage() {
   };
 
   const handleSearch = async () => {
+    if (!accessToken) return;
     setSearchError(null);
     const trimmed = searchTicketId.trim();
     if (!trimmed) return;
     const res = await fetchWithAuth(
-      `${API_URL}/support/ticket/${encodeURIComponent(trimmed.toUpperCase())}`
+      `${API_URL}/support/ticket/${encodeURIComponent(trimmed.toUpperCase())}`,
+      accessToken,
+      refreshToken
     );
     if (!res.ok) {
       setSearchError('Kein Ticket mit dieser ID gefunden.');
@@ -94,9 +105,11 @@ export default function AdminSupportPage() {
   };
 
   const updateStatus = async (status: SupportStatus) => {
-    if (!selected) return;
+    if (!selected || !accessToken) return;
     const res = await fetchWithAuth(
       `${API_URL}/support/${selected.id}/status`,
+      accessToken,
+      refreshToken,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

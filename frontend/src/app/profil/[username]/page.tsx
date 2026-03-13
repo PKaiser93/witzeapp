@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
-import {fetchWithAuth} from "@/lib/fetchWithAuth";
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -57,6 +58,8 @@ interface PublicProfile {
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>();
   const router = useRouter();
+  const { user, accessToken, refreshToken } = useAuth();
+
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [badges, setBadges] = useState<
     { emoji: string; label: string; description: string }[]
@@ -65,64 +68,88 @@ export default function PublicProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
 
-  useEffect(() => {
+  const isLoggedIn = !!user;
+
+  const loadProfile = useCallback(async () => {
     if (!username) return;
-    const token = localStorage.getItem('token');
-    const loggedIn = !!token;
-    setIsLoggedIn(loggedIn);
+    try {
+      const [profileRes, badgesRes] = await Promise.all([
+        fetch(`${API_URL}/profile/user/${username}`),
+        fetch(`${API_URL}/profile/user/${username}/badges`),
+      ]);
 
-    // Eigenes Profil prüfen
-    const ownUsername = localStorage.getItem('username');
-    setIsOwnProfile(ownUsername === username);
+      if (profileRes.status === 404) {
+        setNotFound(true);
+        return;
+      }
 
-    Promise.all([
-      fetch(`${API_URL}/profile/user/${username}`),
-      fetch(`${API_URL}/profile/user/${username}/badges`),
-    ])
-      .then(async ([profileRes, badgesRes]) => {
-        if (profileRes.status === 404) {
-          setNotFound(true);
-          return;
+      if (profileRes.ok) {
+        const data: PublicProfile = await profileRes.json();
+        setProfile(data);
+
+        if (isLoggedIn && accessToken) {
+          // eigenes Profil?
+          setIsOwnProfile(user?.username === data.username);
+
+          // Follow-Status
+          fetchWithAuth(
+            `${API_URL}/follow/${data.id}/status`,
+            accessToken,
+            refreshToken
+          )
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => d && setIsFollowing(d.following))
+            .catch(() => {});
+
+          // Follow-Counts
+          fetchWithAuth(
+            `${API_URL}/follow/${data.id}/counts`,
+            accessToken,
+            refreshToken
+          )
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => d && setFollowerCount(d.followers ?? 0))
+            .catch(() => {});
+        } else {
+          setIsOwnProfile(false);
         }
-        if (profileRes.ok) {
-          const data = await profileRes.json();
-          setProfile(data);
+      }
 
-          // Follow-Status + Counts laden falls eingeloggt
-          if (loggedIn && token) {
-            fetchWithAuth(`${API_URL}/follow/${data.id}/status`)
-                .then((r) => r.json())
-                .then((d) => setIsFollowing(d.following))
-                .catch(() => {});
+      if (badgesRes.ok) {
+        setBadges(await badgesRes.json());
+      }
+    } catch {
+      setNotFound(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [username, isLoggedIn, accessToken, refreshToken, user?.username]);
 
-            fetchWithAuth(`${API_URL}/follow/${data.id}/counts`)
-                .then((r) => r.json())
-                .then((d) => setFollowerCount(d.followers ?? 0))
-                .catch(() => {});
-          }
-        }
-        if (badgesRes.ok) setBadges(await badgesRes.json());
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
-  }, [username]);
+  useEffect(() => {
+    setLoading(true);
+    setNotFound(false);
+    loadProfile();
+  }, [loadProfile]);
 
   const toggleFollow = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isLoggedIn || !accessToken) {
       router.push('/login');
       return;
     }
     if (!profile) return;
     setFollowLoading(true);
     try {
-      const res = await fetchWithAuth(`${API_URL}/follow/${profile.id}`, {
-        method: 'POST',
-      });
+      const res = await fetchWithAuth(
+        `${API_URL}/follow/${profile.id}`,
+        accessToken,
+        refreshToken,
+        {
+          method: 'POST',
+        }
+      );
       if (res.ok) {
         const data = await res.json();
         setIsFollowing(data.following);

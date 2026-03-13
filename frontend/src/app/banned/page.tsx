@@ -1,6 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { fetchWithAuth } from '@/lib/fetchWithAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -13,26 +15,40 @@ interface BanStatus {
 
 export default function BannedPage() {
   const router = useRouter();
+  const { user, accessToken, refreshToken, logout, loading } = useAuth();
   const [ban, setBan] = useState<BanStatus | null>(null);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+  const loadBanStatus = useCallback(async () => {
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/auth/me/ban-status`,
+      accessToken,
+      refreshToken
+    );
+    if (!res.ok) {
+      // z.B. 401 → Context wird durch refreshToken bereits bereinigt
       router.push('/login');
       return;
     }
-    fetch(`${API_URL}/auth/me/ban-status`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.banned) router.push('/');
-        else setBan(data);
-      });
-  }, [router]);
+    const data: BanStatus = await res.json();
+    if (!data.banned) {
+      router.push('/');
+    } else {
+      setBan(data);
+    }
+  }, [accessToken, refreshToken, router]);
 
-  const logout = () => {
-    localStorage.clear();
+  useEffect(() => {
+    if (loading) return; // warten, bis Silent Refresh durch ist
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    loadBanStatus();
+  }, [user, loading, loadBanStatus, router]);
+
+  const handleLogout = async () => {
+    await logout(); // macht Cookie-Clear + Context-Reset
     router.push('/login');
   };
 
@@ -66,20 +82,21 @@ export default function BannedPage() {
               ) : (
                 <p className="text-white text-sm font-medium">
                   Bis{' '}
-                  {new Date(ban.expiresAt!).toLocaleString('de-DE', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {ban.expiresAt &&
+                    new Date(ban.expiresAt).toLocaleString('de-DE', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                 </p>
               )}
             </div>
           </div>
 
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium rounded-xl transition-all text-sm"
           >
             Abmelden

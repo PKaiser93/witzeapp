@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useRequireAdmin } from '@/hooks/useRequireAdmin';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -25,41 +26,52 @@ type Application = {
 
 export default function AdminVerifiedPage() {
   const checking = useRequireAdmin();
+  const { accessToken, refreshToken } = useAuth();
+
   const [applications, setApplications] = useState<Application[]>([]);
   const [filter, setFilter] = useState<string>('PENDING');
   const [loading, setLoading] = useState(true);
   const [rejectNote, setRejectNote] = useState<Record<number, string>>({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    if (!accessToken) return;
     setLoading(true);
     const res = await fetchWithAuth(
-      `${API_URL}/verified-application/admin?status=${filter}`
+      `${API_URL}/verified-application/admin?status=${filter}`,
+      accessToken,
+      refreshToken
     );
     if (res.ok) {
       setApplications(await res.json());
     }
     setLoading(false);
-  };
+  }, [accessToken, refreshToken, filter]);
 
   useEffect(() => {
     if (checking) return;
+    if (!accessToken) return;
     load();
-  }, [filter, checking]);
+  }, [filter, checking, accessToken, load]);
 
   const approve = async (id: number) => {
+    if (!accessToken) return;
     const res = await fetchWithAuth(
       `${API_URL}/verified-application/admin/${id}/approve`,
+      accessToken,
+      refreshToken,
       { method: 'PATCH' }
     );
     if (res.ok) load();
   };
 
   const reject = async (id: number) => {
+    if (!accessToken) return;
     const res = await fetchWithAuth(
       `${API_URL}/verified-application/admin/${id}/reject`,
+      accessToken,
+      refreshToken,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminNote: rejectNote[id] || '' }),
       }
     );

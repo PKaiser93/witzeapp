@@ -1,49 +1,31 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-type JwtPayload = {
-  sub: number;
-  email: string;
-  username: string;
-  role: string;
-  isVerified?: boolean;
-  exp?: number;
-};
+import { useAuth } from '@/context/AuthContext';
 
 export function useRequireAdmin() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    // Solange der AuthContext noch lädt (Silent Refresh), nichts machen
+    if (loading) return;
 
-    if (!token) {
+    // Kein User → Login
+    if (!user) {
       router.push('/login');
       return;
     }
 
-    try {
-      const [, payloadBase64] = token.split('.');
-      const payloadJson = atob(payloadBase64);
-      const payload = JSON.parse(payloadJson) as JwtPayload;
-
-      if (payload.exp && payload.exp * 1000 < Date.now()) {
-        router.push('/login');
-        return;
-      }
-
-      if (payload.role !== 'ADMIN') {
-        router.push('/');
-        return;
-      }
-    } catch {
-      router.push('/login');
+    // Kein Admin → Startseite
+    if (user.role !== 'ADMIN') {
+      router.push('/');
       return;
     }
 
     setChecking(false);
-  }, [router]);
+  }, [user, loading, router]);
 
   return checking;
 }

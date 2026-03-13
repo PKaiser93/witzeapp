@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useRequireAdmin } from '@/hooks/useRequireAdmin';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -18,25 +19,38 @@ interface Report {
 export default function AdminReportsPage() {
   const checking = useRequireAdmin();
   const router = useRouter();
+  const { accessToken, refreshToken } = useAuth();
+
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const load = useCallback(async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/reports`,
+      accessToken,
+      refreshToken
+    );
+    if (res.ok) {
+      const data = await res.json();
+      setReports(data);
+    }
+    setLoading(false);
+  }, [accessToken, refreshToken]);
+
   useEffect(() => {
     if (checking) return;
-    const load = async () => {
-      const res = await fetchWithAuth(`${API_URL}/admin/reports`);
-      if (res.ok) {
-        const data = await res.json();
-        setReports(data);
-      }
-      setLoading(false);
-    };
+    if (!accessToken) return;
     load();
-  }, [checking]);
+  }, [checking, accessToken, load]);
 
   const resolveReport = async (reportId: number) => {
+    if (!accessToken) return;
     const res = await fetchWithAuth(
       `${API_URL}/admin/reports/${reportId}/resolve`,
+      accessToken,
+      refreshToken,
       { method: 'PATCH' }
     );
     if (res.ok) {
@@ -46,9 +60,13 @@ export default function AdminReportsPage() {
 
   const deleteReportedWitz = async (witzId: number) => {
     if (!confirm('Witz wirklich löschen?')) return;
-    const res = await fetchWithAuth(`${API_URL}/admin/reports/${witzId}/witz`, {
-      method: 'DELETE',
-    });
+    if (!accessToken) return;
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/reports/${witzId}/witz`,
+      accessToken,
+      refreshToken,
+      { method: 'DELETE' }
+    );
     if (res.ok) {
       setReports((prev) => prev.filter((r) => r.witz?.id !== witzId));
     }
@@ -63,6 +81,7 @@ export default function AdminReportsPage() {
       </AppLayout>
     );
   }
+
   return (
     <AppLayout>
       <div className="space-y-6">

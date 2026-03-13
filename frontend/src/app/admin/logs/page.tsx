@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { fetchWithAuth } from '@/lib/fetchWithAuth';
 import { useRequireAdmin } from '@/hooks/useRequireAdmin';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -88,23 +89,33 @@ function groupByDate(logs: AuditLog[]) {
 export default function AdminLogsPage() {
   const checking = useRequireAdmin();
   const router = useRouter();
+  const { accessToken, refreshToken } = useAuth();
+
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
+  const load = useCallback(async () => {
+    if (!accessToken) return;
+    setLoading(true);
+    const res = await fetchWithAuth(
+      `${API_URL}/admin/logs`,
+      accessToken,
+      refreshToken
+    );
+    if (res.ok) {
+      const data = await res.json();
+      setLogs(Array.isArray(data) ? data : []);
+    }
+    setLoading(false);
+  }, [accessToken, refreshToken]);
+
   useEffect(() => {
     if (checking) return;
-    const load = async () => {
-      const res = await fetchWithAuth(`${API_URL}/admin/logs`);
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(Array.isArray(data) ? data : []);
-      }
-      setLoading(false);
-    };
+    if (!accessToken) return;
     load();
-  }, [checking]);
+  }, [checking, accessToken, load]);
 
   const filtered = logs
     .filter((l) => filter === 'all' || l.action === filter)

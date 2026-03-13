@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { useAppConfig } from '@/context/AppConfigContext';
@@ -8,6 +8,7 @@ import WitzCard from '@/components/feed/WitzCard';
 import WitzOfTheDayBanner from '@/components/feed/WitzOfTheDay';
 import FeedFilters from '@/components/feed/FeedFilters';
 import QuickPost from '@/components/feed/QuickPost';
+import { useAuth } from '@/context/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 const PAGE_SIZE = 20;
@@ -40,15 +41,16 @@ interface WitzOfTheDay {
   _count: { likeLikes: number };
 }
 
-function getAuthHeader() {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+function buildAuthHeader(accessToken: string | null) {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { feature_likes, feature_comments, feature_report } = useAppConfig();
+  const { accessToken, user, refreshToken } = useAuth();
+  const isLoggedIn = !!user;
 
   const [witze, setWitze] = useState<Witz[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,6 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState<'new' | 'top' | 'comments'>('new');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [reportingWitzId, setReportingWitzId] = useState<number | null>(null);
   const [kategorien, setKategorien] = useState<
     { name: string; emoji: string }[]
@@ -88,8 +89,8 @@ export default function HomePage() {
       if (sort !== 'new') params.set('sort', sort);
       params.set('limit', String(PAGE_SIZE));
 
-      const url = `${API_URL}/witze?${params}`;
-      const res = await fetch(url, { headers: getAuthHeader() });
+      const url = `${API_URL}/witze?${params.toString()}`;
+      const res = await fetch(url, { headers: buildAuthHeader(accessToken) });
       if (!res.ok) return;
       const data = await res.json();
       setWitze(data.witze);
@@ -97,7 +98,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [search, sort, selectedKategorie]);
+  }, [search, sort, selectedKategorie, accessToken]);
 
   // Mehr laden – hängt an bestehende Witze an
   const loadMore = async () => {
@@ -111,8 +112,8 @@ export default function HomePage() {
       params.set('limit', String(PAGE_SIZE));
       params.set('cursor', String(nextCursor));
 
-      const url = `${API_URL}/witze?${params}`;
-      const res = await fetch(url, { headers: getAuthHeader() });
+      const url = `${API_URL}/witze?${params.toString()}`;
+      const res = await fetch(url, { headers: buildAuthHeader(accessToken) });
       if (!res.ok) return;
       const data = await res.json();
       setWitze((prev) => [...prev, ...data.witze]);
@@ -128,8 +129,6 @@ export default function HomePage() {
   }, [searchInput]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setIsLoggedIn(!!localStorage.getItem('token'));
     loadWitze();
     fetch(`${API_URL}/witze/random`)
       .then((r) => r.json())
@@ -144,9 +143,16 @@ export default function HomePage() {
   const postWitz = async (kategorieId?: number | null) => {
     const text = newWitz.trim();
     if (!text) return;
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
     const res = await fetch(`${API_URL}/witze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeader(accessToken),
+      },
       body: JSON.stringify({ text, kategorieId: kategorieId ?? null }),
     });
     if (!res.ok) {
@@ -164,13 +170,31 @@ export default function HomePage() {
       router.push('/login');
       return;
     }
+    let tokenToUse = accessToken;
     const res = await fetch(`${API_URL}/witze/${witz.id}/like`, {
       method: 'PATCH',
-      headers: getAuthHeader(),
+      headers: buildAuthHeader(tokenToUse),
     });
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      router.push('/login');
+    if (res.status === 401 && refreshToken) {
+      const newToken = await refreshToken();
+      if (!newToken) {
+        router.push('/login');
+        return;
+      }
+      const retry = await fetch(`${API_URL}/witze/${witz.id}/like`, {
+        method: 'PATCH',
+        headers: buildAuthHeader(newToken),
+      });
+      if (retry.ok) {
+        const data = await retry.json();
+        setWitze((prev) =>
+          prev.map((w) =>
+            w.id === witz.id
+              ? { ...w, likes: data.likes, userLiked: data.liked }
+              : w
+          )
+        );
+      }
       return;
     }
     if (res.ok) {
@@ -191,10 +215,9 @@ export default function HomePage() {
       setOpenComments(null);
       return;
     }
-    const token = localStorage.getItem('token');
-    const headers: Record<string, string> = {};
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/witze/${witzId}/comments`, { headers });
+    const res = await fetch(`${API_URL}/witze/${witzId}/comments`, {
+      headers: buildAuthHeader(accessToken),
+    });
     if (res.ok) {
       const data = await res.json();
       setCommentsMap((prev) => ({ ...prev, [witzId]: data }));
@@ -206,20 +229,23 @@ export default function HomePage() {
     e.stopPropagation();
     const text = commentTextMap[witzId]?.trim();
     if (!text) return;
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
     setCommentPostingMap((prev) => ({ ...prev, [witzId]: true }));
-    const token = localStorage.getItem('token');
     const res = await fetch(`${API_URL}/witze/${witzId}/comments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        ...buildAuthHeader(accessToken),
       },
       body: JSON.stringify({ text }),
     });
     if (res.ok) {
       setCommentTextMap((prev) => ({ ...prev, [witzId]: '' }));
       const res2 = await fetch(`${API_URL}/witze/${witzId}/comments`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeader(accessToken),
       });
       if (res2.ok) {
         const data = await res2.json();
@@ -303,7 +329,6 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* Mehr laden */}
             {nextCursor && (
               <div className="flex justify-center pt-2 pb-6">
                 <button
@@ -323,7 +348,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Ende der Liste */}
             {!nextCursor && witze.length >= PAGE_SIZE && (
               <p className="text-center text-gray-600 text-sm py-4">
                 Alle Witze geladen 🎉
