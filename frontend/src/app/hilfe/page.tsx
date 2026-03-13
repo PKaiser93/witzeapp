@@ -155,15 +155,15 @@ export default function HilfePage() {
         },
         {
           q: 'Was passiert nach einer Meldung?',
-          a: 'Ein Admin prüft die Meldung und entscheidet ob der Witz entfernt wird.',
+          a: 'Ein Admin prüft die Meldung und entscheidet, ob der Witz entfernt wird. Meldungen und Entscheidungen werden intern dokumentiert, um Missbrauch zu verhindern und Moderationsentscheidungen nachvollziehbar zu machen.',
         },
         {
           q: 'Was ist eine Verwarnung?',
-          a: 'Admins können User für Regelverstöße verwarnen. Verwarnungen sind nur für dich auf deinem Profil sichtbar.',
+          a: 'Admins können User für Regelverstöße verwarnen. Verwarnungen sind nur für dich auf deinem Profil sichtbar und werden intern gespeichert, um wiederholte Verstöße beurteilen zu können.',
         },
         {
           q: 'Ich wurde gebannt – was nun?',
-          a: 'Bei einem temporären Ban siehst du wie lange er noch dauert. Bei einem permanenten Ban kannst du keinen neuen Account erstellen.',
+          a: 'Bei einem temporären Ban siehst du, wie lange er noch dauert. Bei einem permanenten Ban kannst du keinen neuen Account erstellen. Bans und die dazugehörigen Gründe werden intern dokumentiert.',
         },
       ],
     },
@@ -277,6 +277,17 @@ export default function HilfePage() {
           >
             💬 Support kontaktieren
           </button>
+          <p className="mt-3 text-xs text-gray-600">
+            Hinweise zum Datenschutz findest du in unserer{' '}
+            <button
+              type="button"
+              onClick={() => router.push('/datenschutz')}
+              className="underline underline-offset-2 hover:text-gray-300"
+            >
+              Datenschutzerklärung
+            </button>
+            .
+          </p>
         </div>
       </div>
     </AppLayout>

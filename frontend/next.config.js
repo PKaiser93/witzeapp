@@ -4,10 +4,11 @@ const nextConfig = {
         return [
             {
                 source: '/api/:path*',
-                destination: 'http://localhost:3000/:path*'  // Backend Proxy!
-            }
-        ]
-    }
+                destination: 'http://localhost:3000/:path*', // Backend Proxy
+            },
+        ];
+    },
+    outputFileTracingRoot: __dirname,
 };
 
-module.exports
+module.exports = nextConfig;
